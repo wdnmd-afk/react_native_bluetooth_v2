@@ -1,4 +1,5 @@
-import {useState, useEffect} from 'react';
+import {useState, useEffect, useCallback} from 'react';
+
 import {PermissionsAndroid, Platform, Alert, Linking} from 'react-native';
 
 export interface PermissionState {
@@ -117,7 +118,7 @@ export const usePermissions = () => {
   };
 
   // 检查权限状态
-  const checkPermissions = async (): Promise<void> => {
+  const checkPermissions = useCallback(async (): Promise<void> => {
     setIsCheckingPermissions(true);
     console.log('检查权限状态, Android版本:', Platform.Version);
 
@@ -154,11 +155,6 @@ export const usePermissions = () => {
     } finally {
       setIsCheckingPermissions(false);
     }
-  };
-
-  // 组件挂载时检查权限
-  useEffect(() => {
-    checkPermissions();
   }, []);
 
   return {
