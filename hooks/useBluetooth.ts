@@ -6,8 +6,13 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import throttle from 'lodash.throttle';
 import BleManager, {Peripheral} from 'react-native-ble-manager';
 import {usePermissions} from './usePermissions';
+
+const scanConfig = {
+  duration: 5000,
+};
 
 // 环境检测函数
 const logEnvironmentInfo = () => {
@@ -150,16 +155,25 @@ export const useBluetooth = () => {
     openAppSettings,
   } = usePermissions();
 
+  // 扫描状态
   const [isScanning, setIsScanning] = useState(false);
+  // 扫描状态的引用，用于在回调中获取最新状态
   const isScanningRef = useRef(false);
+  // 发现的设备列表
   const [devices, setDevices] = useState<BluetoothDevice[]>([]);
+  // 当前连接的设备
   const [connectedDevice, setConnectedDevice] =
     useState<BluetoothDevice | null>(null);
+  // 蓝牙状态
   const [bluetoothState, setBluetoothState] = useState<BluetoothState>(
     BluetoothState.Unknown,
   );
+  // 蓝牙是否开启
   const [isBluetoothEnabled, setIsBluetoothEnabled] = useState(false);
+  // 扫描超时定时器
   const scanTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // 连接状态
+  const [isConnecting, setIsConnecting] = useState(false);
 
   const checkBluetoothStatus = async () => {
     try {
@@ -181,8 +195,16 @@ export const useBluetooth = () => {
     }
   };
 
+  /**
+   * 开始扫描蓝牙设备
+   */
+  /**
+   * 开始扫描蓝牙设备
+   * @param scanConfig 扫描配置
+   */
   const startScan = async () => {
     if (isScanning) {
+      console.log('扫描已在进行中');
       return;
     }
 
@@ -200,10 +222,13 @@ export const useBluetooth = () => {
     setDevices([]);
 
     try {
-      await BleManager.scan([], 10, true);
+      // 扫描所有设备，不再按服务UUID过滤
+      // 第二个参数（扫描时长）设置为0，表示持续扫描，由我们自己的超时控制停止
+      await BleManager.scan([], 0, true);
+
       const timeoutId = setTimeout(() => {
         stopScan();
-      }, 10000);
+      }, scanConfig.duration);
       scanTimeoutRef.current = timeoutId;
     } catch (error) {
       console.error('❌ BLE扫描失败:', error);
@@ -212,36 +237,91 @@ export const useBluetooth = () => {
     }
   };
 
+  /**
+   * 停止扫描蓝牙设备
+   */
   const stopScan = useCallback(() => {
+    console.log('stopScan方法:进行停止');
+    setIsScanning(false);
     if (scanTimeoutRef.current) {
       clearTimeout(scanTimeoutRef.current);
       scanTimeoutRef.current = null;
     }
+
     if (isScanningRef.current) {
-      BleManager.stopScan().catch(err => console.error('停止扫描失败', err));
+      console.log('isScanningRef.current为true，进行扫描停止');
+      BleManager.stopScan()
+        .catch(err =>
+          console.error(
+            `[${new Date().toISOString()}] BleManager.stopScan 失败`,
+            err,
+          ),
+        )
+        .finally(() => {
+          console.log('扫描已停止');
+          // 立即更新UI状态，避免延迟
+          setIsScanning(false);
+          isScanningRef.current = false;
+        });
+    } else {
+      // 如果没有在扫描，也确保状态是正确的
+      console.log('isScanningRef.current为false，不进行扫描停止');
+      setIsScanning(false);
+      isScanningRef.current = false;
     }
   }, []);
 
+  /**
+   * 连接到指定设备
+   * @param device 要连接的设备
+   */
   const connectDevice = async (device: BluetoothDevice) => {
+    if (isConnecting) {
+      console.log('正在连接中，请稍候...');
+      return;
+    }
+
+    setIsConnecting(true);
     try {
-      if (connectedDevice) {
+      // 如果已有连接，先断开
+      if (connectedDevice?.id) {
         await BleManager.disconnect(connectedDevice.id);
+        setConnectedDevice(null);
       }
+
+      console.log(`正在连接到 ${device.id}...`);
       await BleManager.connect(device.id);
-      setConnectedDevice(device);
+      console.log(`连接成功: ${device.id}`);
+
+      requestAnimationFrame(() => {
+        setConnectedDevice(device);
+      });
       Alert.alert('连接成功', `已连接到 ${device.name || device.id}`);
     } catch (error) {
+      console.error('连接失败:', error);
       Alert.alert('连接失败', `无法连接到 ${device.name || device.id}`);
+    } finally {
+      setIsConnecting(false);
     }
   };
 
+  /**
+   * 断开当前连接的设备
+   */
   const disconnectDevice = async () => {
+    if (isConnecting) {
+      console.log('正在连接中，无法断开');
+      return;
+    }
     if (connectedDevice) {
       try {
+        console.log(`正在断开与 ${connectedDevice.id} 的连接...`);
         await BleManager.disconnect(connectedDevice.id);
         setConnectedDevice(null);
+        console.log('已断开连接');
         Alert.alert('已断开连接');
       } catch (error) {
+        console.error('断开连接失败:', error);
         Alert.alert('断开连接失败');
       }
     }
@@ -252,22 +332,12 @@ export const useBluetooth = () => {
     BleManager.start({showAlert: false});
     checkPermissions(); // Initial permission check
 
-    const handleAppStateChange = (nextAppState: string) => {
-      if (nextAppState === 'active') {
-        checkPermissions();
-        checkBluetoothStatus();
-      }
-    };
-
-    const appStateSubscription = AppState.addEventListener(
-      'change',
-      handleAppStateChange,
-    );
-
     const handleDiscoverPeripheral = (peripheral: Peripheral) => {
       if (!isScanningRef.current) {
         return;
       }
+      console.log('发现新设备:', peripheral);
+
       const device: BluetoothDevice = {
         id: peripheral.id,
         name:
@@ -285,6 +355,18 @@ export const useBluetooth = () => {
         return [...prevDevices, device];
       });
     };
+
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState === 'active') {
+        checkPermissions();
+        checkBluetoothStatus();
+      }
+    };
+
+    const appStateSubscription = AppState.addEventListener(
+      'change',
+      handleAppStateChange,
+    );
 
     const handleStopScan = () => {
       if (isScanningRef.current) {
@@ -327,7 +409,9 @@ export const useBluetooth = () => {
       appStateSubscription.remove();
       listeners.forEach(listener => listener.remove());
     };
-  }, [checkPermissions, stopScan]);
+  }, [checkPermissions, stopScan, connectedDevice]);
+
+
 
   return {
     isScanning,
@@ -335,7 +419,8 @@ export const useBluetooth = () => {
     connectedDevice,
     bluetoothState,
     isBluetoothEnabled,
-    isBluetoothLibraryAvailable: isBluetoothLibraryAvailable(),
+    isConnecting,
+    isBluetoothLibraryAvailable,
     startScan,
     stopScan,
     connectDevice,

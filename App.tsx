@@ -35,6 +35,7 @@ function App(): React.JSX.Element {
     hasLocationPermission,
     hasBluetoothPermission,
     isCheckingPermissions,
+    isConnecting,
     startScan,
     stopScan,
     connectDevice,
@@ -85,12 +86,18 @@ function App(): React.JSX.Element {
         <Text style={styles.subtitle}>搜索并连接附近的蓝牙设备</Text>
       </View>
 
-      {/* 权限检查加载遮罩 */}
-      {isCheckingPermissions && (
-        <View style={styles.loadingOverlay}>
+      {/* 全局加载遮罩 */}
+      {(isScanning || isCheckingPermissions || isConnecting) && (
+        <View style={styles.loadingOverlay} pointerEvents="auto">
           <View style={styles.loadingCard}>
             <ActivityIndicator size="large" color="#3f51b5" />
-            <Text style={styles.loadingText}>正在检查权限...</Text>
+            <Text style={styles.loadingText}>
+              {isScanning
+                ? '正在扫描设备...'
+                : isConnecting
+                ? '正在连接设备...'
+                : '正在检查权限...'}
+            </Text>
           </View>
         </View>
       )}
@@ -242,6 +249,7 @@ function App(): React.JSX.Element {
           data={devices}
           keyExtractor={item => item.id}
           renderItem={renderDeviceItem}
+          scrollEnabled={!isScanning && !isConnecting}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>
@@ -610,12 +618,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   connectButton: {
-    backgroundColor: 'rgba(76, 175, 80, 0.9)',
+    backgroundColor: '#3f51b5',
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 8,
     alignSelf: 'flex-start',
-    shadowColor: '#4caf50',
+    shadowColor: '#3f51b5',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -652,7 +660,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(26, 35, 126, 0.7)',
+    backgroundColor: `rgba(0,0,0,0.3)`,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
