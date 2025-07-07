@@ -6,9 +6,9 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import throttle from 'lodash.throttle';
 import BleManager, {Peripheral} from 'react-native-ble-manager';
 import {usePermissions} from './usePermissions';
+import dayjs from 'dayjs';
 
 const scanConfig = {
   duration: 5000,
@@ -16,11 +16,6 @@ const scanConfig = {
 
 // 环境检测函数
 const logEnvironmentInfo = () => {
-  console.log('=== 环境信息检测 ===');
-  console.log('平台:', Platform.OS);
-  console.log('平台版本:', Platform.Version);
-  console.log('是否开发模式:', __DEV__);
-
   if (Platform.OS === 'android') {
     console.log('Android信息:', {
       Brand: Platform.constants.Brand,
@@ -54,9 +49,6 @@ const isBluetoothLibraryAvailable = (): boolean => {
   try {
     // 步骤1: 检查BleManager是否存在
     console.log('步骤1: 检查BleManager对象');
-    console.log('BleManager存在:', !!BleManager);
-    console.log('BleManager类型:', typeof BleManager);
-
     if (!BleManager) {
       console.error('❌ BleManager对象不存在');
       return false;
@@ -217,14 +209,15 @@ export const useBluetooth = () => {
       return;
     }
 
-    setIsScanning(true);
-    isScanningRef.current = true;
-    setDevices([]);
-
     try {
       // 扫描所有设备，不再按服务UUID过滤
       // 第二个参数（扫描时长）设置为0，表示持续扫描，由我们自己的超时控制停止
-      await BleManager.scan([], 0, true);
+      BleManager.scan([], 5, true).then(() => {
+        setIsScanning(true);
+        isScanningRef.current = true;
+        setDevices([]);
+        console.log('开始扫描', dayjs().format('YYYY-MM-DD HH:mm:ss'));
+      });
 
       const timeoutId = setTimeout(() => {
         stopScan();
@@ -249,7 +242,10 @@ export const useBluetooth = () => {
     }
 
     if (isScanningRef.current) {
-      console.log('isScanningRef.current为true，进行扫描停止');
+      console.log(
+        'isScanningRef.current为true，进行扫描停止',
+        dayjs().format('YYYY-MM-DD HH:mm:ss'),
+      );
       BleManager.stopScan()
         .catch(err =>
           console.error(
@@ -258,7 +254,7 @@ export const useBluetooth = () => {
           ),
         )
         .finally(() => {
-          console.log('扫描已停止');
+          console.log('扫描已停止', dayjs().format('YYYY-MM-DD HH:mm:ss'));
           // 立即更新UI状态，避免延迟
           setIsScanning(false);
           isScanningRef.current = false;
@@ -410,8 +406,6 @@ export const useBluetooth = () => {
       listeners.forEach(listener => listener.remove());
     };
   }, [checkPermissions, stopScan, connectedDevice]);
-
-
 
   return {
     isScanning,
