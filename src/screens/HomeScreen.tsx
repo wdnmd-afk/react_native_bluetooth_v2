@@ -10,12 +10,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 
+import {useBluetooth} from '../../hooks/useBluetooth';
 import {
-  useBluetooth,
   BluetoothDevice,
   BluetoothState,
   getBluetoothStateText,
-} from '../../hooks/useBluetooth';
+  isBluetoothLibraryAvailable,
+} from '../../utils/bluetoothUtils';
 
 // 主应用组件
 function HomeScreen(): React.JSX.Element {
@@ -36,10 +37,9 @@ function HomeScreen(): React.JSX.Element {
     requestLocationPermission,
     requestBluetoothPermission,
     openAppSettings,
-    isBluetoothLibraryAvailable,
   } = useBluetooth();
 
-  if (!isBluetoothLibraryAvailable) {
+  if (!isBluetoothLibraryAvailable()) {
     return (
       <SafeAreaView style={styles.container}>
         <Text style={styles.errorText}>

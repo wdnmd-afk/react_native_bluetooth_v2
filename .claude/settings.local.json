@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(rm:*)",
+      "Bash(mkdir:*)",
+      "Bash(npm install:*)",
+      "Bash(ls:*)",
+      "Bash(npx react-native:*)",
+      "Bash(./gradlew:*)",
+      "Bash(export:*)",
+      "Bash(java:*)",
+      "Bash(find:*)"
+    ],
+    "deny": []
+  }
+}

@@ -3,138 +3,22 @@ import {
   AppState,
   NativeEventEmitter,
   NativeModules,
-  Platform,
   Alert,
 } from 'react-native';
 import BleManager, {Peripheral} from 'react-native-ble-manager';
 import {usePermissions} from './usePermissions';
 import dayjs from 'dayjs';
-
-const scanConfig = {
-  duration: 5000,
-};
-
-// 环境检测函数
-const logEnvironmentInfo = () => {
-  if (Platform.OS === 'android') {
-    console.log('Android信息:', {
-      Brand: Platform.constants.Brand,
-      Manufacturer: Platform.constants.Manufacturer,
-      Model: Platform.constants.Model,
-      Release: Platform.constants.Release,
-      SDK: Platform.constants.Version,
-    });
-
-    // 检测是否为模拟器
-    const isEmulator =
-      Platform.constants.Brand === 'google' ||
-      Platform.constants.Manufacturer === 'Google' ||
-      Platform.constants.Model?.includes('Emulator') ||
-      Platform.constants.Model?.includes('Android SDK');
-
-    console.log('疑似模拟器:', isEmulator);
-
-    if (isEmulator) {
-      console.warn('⚠️ 检测到可能在模拟器上运行，蓝牙功能在模拟器上不可用');
-    }
-  }
-
-  console.log('=== 环境信息检测结束 ===');
-};
-
-// 检查蓝牙库是否可用
-const isBluetoothLibraryAvailable = (): boolean => {
-  console.log('=== 开始检查蓝牙库可用性 ===');
-
-  try {
-    // 步骤1: 检查BleManager是否存在
-    console.log('步骤1: 检查BleManager对象');
-    if (!BleManager) {
-      console.error('❌ BleManager对象不存在');
-      return false;
-    }
-
-    // 步骤2: 检查BleManager的方法
-    console.log('步骤2: 检查BleManager方法');
-    const methods = Object.keys(BleManager || {});
-    console.log('可用方法列表:', methods);
-
-    // 步骤3: 检查关键方法是否存在
-    console.log('步骤3: 检查关键方法');
-    const hasStart = typeof BleManager.start === 'function';
-    const hasStartScan = typeof BleManager.scan === 'function';
-    const hasStopScan = typeof BleManager.stopScan === 'function';
-    const hasConnect = typeof BleManager.connect === 'function';
-    const hasCheckState = typeof BleManager.checkState === 'function';
-
-    console.log('start方法:', hasStart);
-    console.log('scan方法:', hasStartScan);
-    console.log('stopScan方法:', hasStopScan);
-    console.log('connect方法:', hasConnect);
-    console.log('checkState方法:', hasCheckState);
-
-    if (!hasStart || !hasStartScan || !hasStopScan || !hasConnect) {
-      console.error('❌ 关键方法不可用');
-      return false;
-    }
-
-    console.log('✅ 蓝牙库检查通过');
-    return true;
-  } catch (error: any) {
-    console.error('❌ 检查蓝牙库可用性失败:', error);
-    console.error('错误详情:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-    });
-    return false;
-  } finally {
-    console.log('=== 蓝牙库检查结束 ===');
-  }
-};
+import {
+  logEnvironmentInfo,
+  isBluetoothLibraryAvailable,
+  BluetoothState,
+  getBluetoothStateText,
+  BluetoothDevice,
+  scanConfig,
+} from '../utils/bluetoothUtils';
 
 const BleManagerModule = NativeModules.BleManager;
 const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
-
-export enum BluetoothState {
-  Unknown = 'Unknown',
-  Resetting = 'Resetting',
-  Unsupported = 'Unsupported',
-  Unauthorized = 'Unauthorized',
-  PoweredOff = 'PoweredOff',
-  PoweredOn = 'PoweredOn',
-}
-
-// 获取BLE状态的文本描述
-export const getBluetoothStateText = (state: BluetoothState): string => {
-  switch (state) {
-    case BluetoothState.Unknown:
-      return '未知';
-    case BluetoothState.Resetting:
-      return '重置中';
-    case BluetoothState.Unsupported:
-      return '不支持';
-    case BluetoothState.Unauthorized:
-      return '未授权';
-    case BluetoothState.PoweredOff:
-      return '已关闭';
-    case BluetoothState.PoweredOn:
-      return '已开启';
-    default:
-      return '未知';
-  }
-};
-
-export interface BluetoothDevice {
-  id: string;
-  name?: string;
-  rssi?: number;
-  advertising?: {
-    localName?: string;
-    manufacturerData?: any;
-    serviceUUIDs?: string[];
-  };
-}
 
 export const useBluetooth = () => {
   const {
@@ -323,11 +207,16 @@ export const useBluetooth = () => {
     }
   };
 
+  // 初始化 effect - 只运行一次
   useEffect(() => {
     logEnvironmentInfo();
     BleManager.start({showAlert: false});
     checkPermissions(); // Initial permission check
+    checkBluetoothStatus();
+  }, []); // 空依赖数组，只在组件挂载时运行一次
 
+  // 事件监听器 effect - 只运行一次
+  useEffect(() => {
     const handleDiscoverPeripheral = (peripheral: Peripheral) => {
       if (!isScanningRef.current) {
         return;
@@ -359,21 +248,10 @@ export const useBluetooth = () => {
       }
     };
 
-    const appStateSubscription = AppState.addEventListener(
-      'change',
-      handleAppStateChange,
-    );
-
     const handleStopScan = () => {
       if (isScanningRef.current) {
         setIsScanning(false);
         isScanningRef.current = false;
-      }
-    };
-
-    const handleDisconnectedPeripheral = (data: {peripheral: string}) => {
-      if (connectedDevice?.id === data.peripheral) {
-        setConnectedDevice(null);
       }
     };
 
@@ -382,6 +260,11 @@ export const useBluetooth = () => {
       setIsBluetoothEnabled(data.state === BluetoothState.PoweredOn);
     };
 
+    const appStateSubscription = AppState.addEventListener(
+      'change',
+      handleAppStateChange,
+    );
+
     const listeners = [
       bleManagerEmitter.addListener(
         'BleManagerDiscoverPeripheral',
@@ -389,23 +272,34 @@ export const useBluetooth = () => {
       ),
       bleManagerEmitter.addListener('BleManagerStopScan', handleStopScan),
       bleManagerEmitter.addListener(
-        'BleManagerDisconnectPeripheral',
-        handleDisconnectedPeripheral,
-      ),
-      bleManagerEmitter.addListener(
         'BleManagerDidUpdateState',
         handleUpdateState,
       ),
     ];
 
-    checkBluetoothStatus();
-
     return () => {
-      stopScan();
       appStateSubscription.remove();
       listeners.forEach(listener => listener.remove());
     };
-  }, [checkPermissions, stopScan, connectedDevice]);
+  }, []); // 空依赖数组，只在组件挂载时运行一次
+
+  // 连接设备断开监听 effect
+  useEffect(() => {
+    const handleDisconnectedPeripheral = (data: {peripheral: string}) => {
+      if (connectedDevice?.id === data.peripheral) {
+        setConnectedDevice(null);
+      }
+    };
+
+    const listener = bleManagerEmitter.addListener(
+      'BleManagerDisconnectPeripheral',
+      handleDisconnectedPeripheral,
+    );
+
+    return () => {
+      listener.remove();
+    };
+  }, [connectedDevice]); // 只依赖 connectedDevice
 
   return {
     isScanning,
@@ -414,7 +308,6 @@ export const useBluetooth = () => {
     bluetoothState,
     isBluetoothEnabled,
     isConnecting,
-    isBluetoothLibraryAvailable,
     startScan,
     stopScan,
     connectDevice,

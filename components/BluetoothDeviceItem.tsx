@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { BluetoothDevice } from '../hooks/useBluetooth';
+import { BluetoothDevice } from '../utils/bluetoothUtils';
 
 interface BluetoothDeviceItemProps {
   device: BluetoothDevice;

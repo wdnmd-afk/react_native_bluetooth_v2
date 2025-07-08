@@ -10,11 +10,12 @@ import {
   Platform,
 } from 'react-native';
 
+import {useBluetooth} from '../hooks/useBluetooth';
 import {
-  useBluetooth,
   BluetoothDevice,
   BluetoothState,
-} from '../hooks/useBluetooth';
+  isBluetoothLibraryAvailable,
+} from '../utils/bluetoothUtils';
 import BluetoothDeviceItem from '../components/BluetoothDeviceItem';
 import BluetoothStatus from '../components/BluetoothStatus';
 import LoadingOverlay from '../components/LoadingOverlay';
@@ -39,10 +40,9 @@ function HomeScreen(): React.JSX.Element {
     requestLocationPermission,
     requestBluetoothPermission,
     openAppSettings,
-    isBluetoothLibraryAvailable,
   } = useBluetooth();
 
-  if (!isBluetoothLibraryAvailable) {
+  if (!isBluetoothLibraryAvailable()) {
     return (
       <SafeAreaView style={styles.container}>
         <Text style={styles.errorText}>

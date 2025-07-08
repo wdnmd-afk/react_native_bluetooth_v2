@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { BluetoothState, getBluetoothStateText } from '../hooks/useBluetooth';
+import { BluetoothState, getBluetoothStateText } from '../utils/bluetoothUtils';
 
 interface BluetoothStatusProps {
   bluetoothState: BluetoothState;
