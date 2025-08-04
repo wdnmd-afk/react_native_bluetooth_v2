@@ -21,11 +21,39 @@ import BluetoothStatus from '../components/BluetoothStatus';
 import LoadingOverlay from '../components/LoadingOverlay';
 import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../lib/constants';
 
+// 模拟设备数据，确保最小显示3个设备
+const mockDevices: BluetoothDevice[] = [
+  {
+    id: 'mock-1',
+    name: 'HP LaserJet Pro',
+    address: '00:1B:44:11:3A:B7',
+    rssi: -45,
+    isConnected: false,
+    isPaired: true,
+  },
+  {
+    id: 'mock-2',
+    name: 'Canon PIXMA',
+    address: '00:1B:44:11:3A:B8',
+    rssi: -62,
+    isConnected: false,
+    isPaired: false,
+  },
+  {
+    id: 'mock-3',
+    name: 'Epson WorkForce',
+    address: '00:1B:44:11:3A:B9',
+    rssi: -58,
+    isConnected: false,
+    isPaired: true,
+  },
+];
+
 // 主应用组件
 function HomeScreen(): React.JSX.Element {
   const {
     isScanning,
-    devices,
+    devices: scannedDevices,
     connectedDevice,
     bluetoothState,
     isBluetoothEnabled,
@@ -41,6 +69,19 @@ function HomeScreen(): React.JSX.Element {
     requestBluetoothPermission,
     openAppSettings,
   } = useBluetooth();
+
+  // 合并扫描到的设备和模拟设备，确保最小显示3个设备
+  const devices = React.useMemo(() => {
+    const allDevices = [...scannedDevices];
+
+    // 如果扫描到的设备少于3个，用模拟设备补充
+    if (allDevices.length < 3) {
+      const neededMockDevices = mockDevices.slice(0, 3 - allDevices.length);
+      allDevices.push(...neededMockDevices);
+    }
+
+    return allDevices;
+  }, [scannedDevices]);
 
   if (!isBluetoothLibraryAvailable()) {
     return (
@@ -195,31 +236,41 @@ function HomeScreen(): React.JSX.Element {
 
       {/* 设备列表 */}
       <View style={styles.deviceListContainer}>
-        <Text style={styles.sectionTitle}>
-          发现的设备 ({devices.length})
-        </Text>
-        {devices.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateIcon}>📱</Text>
-            <Text style={styles.emptyStateText}>
-              {isScanning ? '正在搜索设备...' : '暂无发现设备'}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>
+            发现的设备 ({scannedDevices.length})
+          </Text>
+          {scannedDevices.length < devices.length && (
+            <Text style={styles.mockDeviceHint}>
+              包含 {devices.length - scannedDevices.length} 个示例设备
             </Text>
-            <Text style={styles.emptyStateSubtext}>
-              {isScanning
-                ? '请确保目标设备已开启蓝牙并处于可发现状态'
-                : '点击"开始扫描"按钮搜索附近的蓝牙设备'}
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={devices}
-            renderItem={renderDeviceItem}
-            keyExtractor={item => item.id}
-            style={styles.deviceList}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.deviceListContent}
-          />
-        )}
+          )}
+        </View>
+
+        <FlatList
+          data={devices}
+          renderItem={renderDeviceItem}
+          keyExtractor={item => item.id}
+          style={styles.deviceList}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.deviceListContent,
+            { minHeight: 240 } // 确保最小高度能显示3个设备项
+          ]}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateIcon}>📱</Text>
+              <Text style={styles.emptyStateText}>
+                {isScanning ? '正在搜索设备...' : '暂无发现设备'}
+              </Text>
+              <Text style={styles.emptyStateSubtext}>
+                {isScanning
+                  ? '请确保目标设备已开启蓝牙并处于可发现状态'
+                  : '点击"开始扫描"按钮搜索附近的蓝牙设备'}
+              </Text>
+            </View>
+          }
+        />
       </View>
     </SafeAreaView>
   );
@@ -285,11 +336,20 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  sectionHeader: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#ffffff',
-    marginBottom: 16,
+    marginBottom: 4,
+  },
+  mockDeviceHint: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontStyle: 'italic',
   },
   connectedDevice: {
     backgroundColor: 'rgba(16, 185, 129, 0.2)',

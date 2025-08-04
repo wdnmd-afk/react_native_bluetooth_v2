@@ -18,8 +18,8 @@ class MainApplication : Application(), ReactApplication {
       object : DefaultReactNativeHost(this) {
         override fun getPackages(): List<ReactPackage> =
             PackageList(this).packages.apply {
-              // Packages that cannot be autolinked yet can be added manually here, for example:
-              // add(MyReactNativePackage())
+              // 依赖自动链接，React Native 0.60+会自动处理gesture-handler
+              // 不需要手动添加包
             }
 
         override fun getJSMainModuleName(): String = "index"
