@@ -1,30 +1,39 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
-import { RootStackParamList } from './types/navigation';
-import { routeConfigs, defaultStackOptions } from './config/routes';
 import { navigationRef } from './utils/navigation';
+import RootAuthNavigator from './components/AuthNavigator';
+import { ToastProvider, useToast } from './components/ToastProvider';
+import { setGlobalToastRef } from './hooks/useToast';
 
-// 创建Stack Navigator实例，用于页面间的跳转导航
-const Stack = createStackNavigator<RootStackParamList>();
+/**
+ * 内部App组件，用于设置全局Toast引用
+ */
+const InnerApp: React.FC = () => {
+  const toast = useToast();
 
-function App(): React.JSX.Element {
+  useEffect(() => {
+    // 设置全局Toast引用，供静态方法使用
+    setGlobalToastRef(toast);
+  }, [toast]);
+
   return (
     // NavigationContainer是React Navigation的根容器，绑定全局导航引用
     <NavigationContainer ref={navigationRef}>
-      {/* Stack Navigator配置，使用统一的路由配置 */}
-      <Stack.Navigator screenOptions={defaultStackOptions}>
-        {/* 动态渲染所有路由配置 */}
-        {routeConfigs.map((route) => (
-          <Stack.Screen
-            key={route.name}
-            name={route.name}
-            component={route.component}
-            options={route.options}
-          />
-        ))}
-      </Stack.Navigator>
+      {/* 使用认证路由守卫组件，自动处理认证状态切换 */}
+      <RootAuthNavigator />
     </NavigationContainer>
+  );
+};
+
+/**
+ * 应用根组件
+ * 集成认证导航系统和Toast提供者
+ */
+function App(): React.JSX.Element {
+  return (
+    <ToastProvider>
+      <InnerApp />
+    </ToastProvider>
   );
 }
 

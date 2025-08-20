@@ -1,5 +1,12 @@
-// Stack Navigator的路由参数类型定义
-export type RootStackParamList = {
+// 认证相关页面的路由参数类型定义
+export type AuthStackParamList = {
+  Login: undefined;               // 登录页面，无需传递参数
+  Register: undefined;            // 注册页面，无需传递参数
+  ForgotPassword?: undefined;     // 忘记密码页面（预留），无需传递参数
+};
+
+// 主应用页面的路由参数类型定义
+export type MainStackParamList = {
   TabLayout: undefined;           // 主页面（包含Tab导航），无需传递参数
   FeatureDemo: undefined;         // 功能展示页面，无需传递参数
   DeviceManagement: undefined;    // 设备管理页面，无需传递参数
@@ -7,6 +14,9 @@ export type RootStackParamList = {
   DataAnalytics: undefined;       // 数据分析页面，无需传递参数
   PrinterDetails: { deviceId: string; deviceName: string }; // 打印机详情页面，必需设备信息
 };
+
+// 根导航的路由参数类型定义（兼容性保持）
+export type RootStackParamList = MainStackParamList;
 
 // Tab Navigator的路由参数类型定义
 export type TabParamList = {

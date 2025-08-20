@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,15 +8,50 @@ import {
   TouchableOpacity,
   Image,
   Platform,
+  Alert,
 } from 'react-native';
+import { useAuth } from '../hooks/useAuth';
 
 const ProfileScreen: React.FC = () => {
+  // 获取认证状态和用户信息
+  const { user, logout, loading } = useAuth();
+
+  /**
+   * 处理退出登录
+   */
+  const handleLogout = useCallback(() => {
+    Alert.alert(
+      '退出登录',
+      '确定要退出登录吗？',
+      [
+        {
+          text: '取消',
+          style: 'cancel',
+        },
+        {
+          text: '确定',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout();
+              // 登出成功后，认证路由守卫会自动跳转到登录页面
+            } catch (error) {
+              console.error('登出失败:', error);
+              Alert.alert('错误', '登出失败，请重试');
+            }
+          },
+        },
+      ]
+    );
+  }, [logout]);
+
   const menuItems = [
     { id: 1, title: '设备管理', subtitle: '管理已连接的蓝牙设备', icon: '📱' },
     { id: 2, title: '连接历史', subtitle: '查看设备连接记录', icon: '📊' },
     { id: 3, title: '应用设置', subtitle: '个性化设置选项', icon: '⚙️' },
     { id: 4, title: '帮助中心', subtitle: '使用指南和常见问题', icon: '❓' },
     { id: 5, title: '关于我们', subtitle: '应用信息和版本', icon: 'ℹ️' },
+    { id: 6, title: '退出登录', subtitle: '安全退出当前账户', icon: '🚪', action: handleLogout, isLogout: true },
   ];
 
   return (
@@ -27,15 +62,19 @@ const ProfileScreen: React.FC = () => {
           <View style={styles.profileCard}>
             <View style={styles.avatarContainer}>
               <View style={styles.avatar}>
-                <Text style={styles.avatarText}>U</Text>
+                <Text style={styles.avatarText}>
+                  {user?.username?.charAt(0)?.toUpperCase() || 'U'}
+                </Text>
               </View>
               <View style={styles.onlineIndicator} />
             </View>
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>用户名</Text>
-              <Text style={styles.userEmail}>user@example.com</Text>
+              <Text style={styles.userName}>{user?.username || '用户名'}</Text>
+              <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
               <View style={styles.statusBadge}>
-                <Text style={styles.statusText}>已连接</Text>
+                <Text style={styles.statusText}>
+                  {user?.isActive ? '已激活' : '未激活'}
+                </Text>
               </View>
             </View>
           </View>
@@ -70,18 +109,33 @@ const ProfileScreen: React.FC = () => {
                 styles.menuItem,
                 index === 0 && styles.firstMenuItem,
                 index === menuItems.length - 1 && styles.lastMenuItem,
+                (item as any).isLogout && styles.logoutMenuItem,
               ]}
               activeOpacity={0.7}
+              onPress={(item as any).action || (() => console.log(`点击了${item.title}`))}
+              disabled={loading}
             >
               <View style={styles.menuIcon}>
-                <Text style={styles.menuIconText}>{item.icon}</Text>
+                <Text style={[
+                  styles.menuIconText,
+                  (item as any).isLogout && styles.logoutIcon
+                ]}>{item.icon}</Text>
               </View>
               <View style={styles.menuContent}>
-                <Text style={styles.menuTitle}>{item.title}</Text>
-                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                <Text style={[
+                  styles.menuTitle,
+                  (item as any).isLogout && styles.logoutTitle
+                ]}>{item.title}</Text>
+                <Text style={[
+                  styles.menuSubtitle,
+                  (item as any).isLogout && styles.logoutSubtitle
+                ]}>{item.subtitle}</Text>
               </View>
               <View style={styles.menuArrow}>
-                <Text style={styles.arrowText}>›</Text>
+                <Text style={[
+                  styles.arrowText,
+                  (item as any).isLogout && styles.logoutArrow
+                ]}>›</Text>
               </View>
             </TouchableOpacity>
           ))}
@@ -275,6 +329,24 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: 'rgba(255, 255, 255, 0.4)',
     fontWeight: '300',
+  },
+  // 退出登录相关样式
+  logoutMenuItem: {
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  logoutIcon: {
+    color: '#ef4444',
+  },
+  logoutTitle: {
+    color: '#ef4444',
+    fontWeight: '600',
+  },
+  logoutSubtitle: {
+    color: 'rgba(239, 68, 68, 0.7)',
+  },
+  logoutArrow: {
+    color: '#ef4444',
   },
   bottomSpacing: {
     height: 100,

@@ -1,8 +1,12 @@
 import React from 'react';
 import { StackNavigationOptions } from '@react-navigation/stack';
-import { RootStackParamList } from '../types/navigation';
+import { RootStackParamList, AuthStackParamList, MainStackParamList } from '../types/navigation';
 
-// 导入所有页面组件
+// 导入认证相关页面组件
+import LoginScreen from '../app/login';
+import RegisterScreen from '../app/register';
+
+// 导入主应用页面组件
 import TabLayout from '../app/_layout';
 import FeatureDemoScreen from '../app/feature-demo';
 import DeviceManagementScreen from '../app/device-management';
@@ -18,8 +22,46 @@ export interface RouteConfig {
   description?: string;                     // 路由描述
 }
 
-// 路由配置数组 - 类似Web端的路由配置
-export const routeConfigs: RouteConfig[] = [
+// 认证路由配置项的类型定义
+export interface AuthRouteConfig {
+  name: keyof AuthStackParamList;           // 认证路由名称
+  component: React.ComponentType<any>;      // 页面组件
+  options?: StackNavigationOptions;         // 导航选项
+  description?: string;                     // 路由描述
+}
+
+// 主应用路由配置项的类型定义
+export interface MainRouteConfig {
+  name: keyof MainStackParamList;           // 主应用路由名称
+  component: React.ComponentType<any>;      // 页面组件
+  options?: StackNavigationOptions;         // 导航选项
+  description?: string;                     // 路由描述
+}
+
+// 认证路由配置数组
+export const authRouteConfigs: AuthRouteConfig[] = [
+  {
+    name: 'Login',
+    component: LoginScreen,
+    options: {
+      headerShown: false,  // 使用自定义设计
+      gestureEnabled: false, // 禁用手势返回
+    },
+    description: '登录页面 - 用户登录认证',
+  },
+  {
+    name: 'Register',
+    component: RegisterScreen,
+    options: {
+      headerShown: false,  // 使用自定义设计
+      gestureEnabled: true, // 允许手势返回到登录页
+    },
+    description: '注册页面 - 用户注册账户',
+  },
+];
+
+// 主应用路由配置数组
+export const mainRouteConfigs: MainRouteConfig[] = [
   {
     name: 'TabLayout',
     component: TabLayout,
@@ -116,6 +158,9 @@ export const routeConfigs: RouteConfig[] = [
     description: '打印机详情页面 - 查看设备详细信息和操作（嵌套路由示例）',
   },
 ];
+
+// 兼容性路由配置数组（保持向后兼容）
+export const routeConfigs: RouteConfig[] = mainRouteConfigs;
 
 // 默认的Stack Navigator配置
 export const defaultStackOptions: StackNavigationOptions = {
