@@ -12,6 +12,9 @@ import TabLayout from '../app/_layout';
 // 导入类型定义
 import { AuthStackParamList, MainStackParamList } from '../types/navigation';
 
+// 导入路由配置
+import { authRouteConfigs, mainRouteConfigs } from '../config/routes';
+
 /**
  * 认证相关页面的Stack Navigator
  */
@@ -65,20 +68,23 @@ const MainNavigator: React.FC = () => {
   return (
     <MainStack.Navigator
       screenOptions={{
-        headerShown: false, // 使用TabLayout自己的导航
+        headerShown: false, // 默认隐藏导航栏，由各页面自己控制
         cardStyle: { backgroundColor: 'transparent' },
         animationEnabled: true,
+        gestureEnabled: true,
+        gestureDirection: 'horizontal',
       }}
       initialRouteName="TabLayout"
     >
-      <MainStack.Screen 
-        name="TabLayout" 
-        component={TabLayout}
-        options={{
-          title: '主页面',
-        }}
-      />
-      {/* 这里可以添加其他需要认证的页面 */}
+      {/* 使用配置化路由，动态生成所有主应用页面 */}
+      {mainRouteConfigs.map((route) => (
+        <MainStack.Screen
+          key={route.name}
+          name={route.name}
+          component={route.component}
+          options={route.options}
+        />
+      ))}
     </MainStack.Navigator>
   );
 };
@@ -105,17 +111,27 @@ const LoadingScreen: React.FC = () => {
 const RootAuthNavigator: React.FC = () => {
   const { isAuthenticated, loading, user } = useAuth();
 
+  // 详细的认证状态日志，便于问题诊断
+  console.log('🔍 AuthNavigator状态检查:', {
+    isAuthenticated,
+    loading,
+    hasUser: !!user,
+    userId: user?.id,
+    username: user?.username,
+  });
+
   // 显示加载状态
   if (loading) {
+    console.log('⏳ 显示加载页面 - 正在检查认证状态');
     return <LoadingScreen />;
   }
 
   // 根据认证状态返回对应的导航组件
   if (isAuthenticated && user) {
-    console.log('用户已认证，显示主应用页面:', { userId: user.id, username: user.username });
+    console.log('✅ 用户已认证，显示主应用页面:', { userId: user.id, username: user.username });
     return <MainNavigator />;
   } else {
-    console.log('用户未认证，显示认证页面');
+    console.log('❌ 用户未认证，显示认证页面');
     return <AuthNavigator />;
   }
 };

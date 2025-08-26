@@ -9,7 +9,7 @@ import {
   StyleSheet,
   Platform,
   KeyboardAvoidingView,
-  Alert,
+  Alert, // 保留Alert用于忘记密码和社交登录功能
   Dimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -51,8 +51,8 @@ const LoginScreen: React.FC = () => {
   // 是否显示密码
   const [showPassword, setShowPassword] = useState(false);
   
-  // 记住登录状态
-  const [rememberMe, setRememberMe] = useState(false);
+  // 注意：rememberMe状态已移除，因为后端API不支持此字段
+  // 登录状态的持久化通过HttpClient默认的token缓存机制实现
 
   /**
    * 更新表单数据
@@ -117,25 +117,19 @@ const LoginScreen: React.FC = () => {
       const success = await login({
         usernameOrEmail: formData.username.trim(),
         password: formData.password,
-        rememberMe,
+        // 注意：rememberMe字段已移除，因为后端API不接受此字段
       });
 
       if (success) {
-        // 登录成功，可以导航到主页面
-        Alert.alert('登录成功', '欢迎回来！', [
-          {
-            text: '确定',
-            onPress: () => {
-              // TODO: 导航到主页面
-              console.log('导航到主页面');
-            },
-          },
-        ]);
+        // 登录成功，依赖useAuth中Toast提示和自动导航到主页面
+        console.log('🎉 登录成功，等待自动跳转到主页面');
+        // 注意：移除Alert弹窗，避免干扰React状态更新和组件重新渲染
+        // AuthNavigator会根据isAuthenticated状态自动切换到主应用导航
       }
     } catch (error) {
       console.error('登录处理失败:', error);
     }
-  }, [formData, rememberMe, validateForm, login]);
+  }, [formData, validateForm, login]); // 移除rememberMe依赖
 
   /**
    * 切换密码显示状态
@@ -144,12 +138,7 @@ const LoginScreen: React.FC = () => {
     setShowPassword(prev => !prev);
   }, []);
 
-  /**
-   * 切换记住登录状态
-   */
-  const toggleRememberMe = useCallback(() => {
-    setRememberMe(prev => !prev);
-  }, []);
+  // 注意：toggleRememberMe函数已移除，因为不再需要记住登录功能
 
   /**
    * 处理忘记密码
@@ -234,17 +223,8 @@ const LoginScreen: React.FC = () => {
               required
             />
 
-            {/* 记住登录选项 */}
-            <TouchableOpacity
-              style={styles.rememberMeContainer}
-              onPress={toggleRememberMe}
-              disabled={loading}
-            >
-              <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                {rememberMe && <Text style={styles.checkmark}>✓</Text>}
-              </View>
-              <Text style={styles.rememberMeText}>记住登录状态</Text>
-            </TouchableOpacity>
+            {/* 注意：记住登录复选框已移除，因为后端API不支持rememberMe字段 */}
+            {/* 登录状态的持久化通过HttpClient默认的token缓存机制实现 */}
 
             {/* 全局错误提示 */}
             {error ? (
@@ -358,8 +338,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.25)',
     marginBottom: SPACING.xl,
     marginHorizontal: SPACING.xs, // 增加左右间距
-    // 现代化的毛玻璃卡片效果
-    backdropFilter: 'blur(15px)',
+    // 注意：React Native不支持backdropFilter，已移除
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -409,34 +388,7 @@ const styles = StyleSheet.create({
   passwordToggleText: {
     fontSize: 18,
   },
-  rememberMeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.lg,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: 'rgba(59, 130, 246, 0.5)',
-    marginRight: SPACING.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
-  },
-  checkmark: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  rememberMeText: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
+  // 注意：rememberMe相关样式已移除，因为不再需要记住登录功能
   errorContainer: {
     backgroundColor: 'rgba(239, 68, 68, 0.2)',
     borderRadius: BORDER_RADIUS.sm,

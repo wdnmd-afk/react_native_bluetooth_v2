@@ -114,7 +114,7 @@ export const useAuth = (): UseAuthReturn => {
       console.log('🔐 开始登录请求');
       console.log('👤 用户名:', credentials.usernameOrEmail);
       console.log('🔒 密码长度:', credentials.password?.length || 0);
-      console.log('💾 记住登录:', credentials.rememberMe);
+      // 注意：rememberMe日志已移除，因为后端API不接受此字段
       console.log('📋 完整登录数据:', JSON.stringify(credentials, null, 2));
 
       // 发送登录请求
@@ -139,18 +139,22 @@ export const useAuth = (): UseAuthReturn => {
         }
 
         // 存储token
+        console.log('💾 开始存储token到AsyncStorage...');
         await HttpClient.setToken(accessToken);
+        console.log('✅ Token存储成功');
 
         // 更新认证状态
+        console.log('🔄 开始更新认证状态...');
         updateAuthState({
           isAuthenticated: true,
           user,
           loading: false,
           error: null,
         });
+        console.log('✅ 认证状态更新成功', { isAuthenticated: true, userId: user.id });
 
-        console.log('登录成功:', { userId: user.id, username: user.username });
-        Toast.success(`欢迎回来，${user.username}！`, '登录成功');
+        console.log('🎉 登录流程完成:', { userId: user.id, username: user.username });
+        Toast.success(`欢迎回来，${user.username}！`); // 修复：移除第二个参数，使用默认duration
         return true;
       } else {
         throw new Error('登录响应数据无效');
@@ -171,7 +175,7 @@ export const useAuth = (): UseAuthReturn => {
       });
 
       // 显示错误提示
-      Toast.error(errorMessage, '登录失败');
+      Toast.error(errorMessage); // 修复：移除第二个参数，使用默认duration
       return false;
     }
   }, [updateAuthState, clearError, handleHttpError]);
@@ -217,7 +221,7 @@ export const useAuth = (): UseAuthReturn => {
           });
 
           console.log('注册并登录成功:', { userId: loginUser.id, username: loginUser.username });
-          Toast.success(`注册成功，欢迎加入，${loginUser.username}！`, '注册成功');
+          Toast.success(`注册成功，欢迎加入，${loginUser.username}！`); // 修复：移除第二个参数
           return true;
         } else {
           // 注册成功但登录失败，提示用户手动登录
@@ -227,7 +231,7 @@ export const useAuth = (): UseAuthReturn => {
             loading: false,
             error: '注册成功，请手动登录',
           });
-          Toast.warning('注册成功，请手动登录', '注册成功');
+          Toast.warning('注册成功，请手动登录'); // 修复：移除第二个参数
           return true;
         }
       } else {
@@ -249,7 +253,7 @@ export const useAuth = (): UseAuthReturn => {
       });
 
       // 显示错误提示
-      Toast.error(errorMessage, '注册失败');
+      Toast.error(errorMessage); // 修复：移除第二个参数，使用默认duration
       return false;
     }
   }, [updateAuthState, clearError, handleHttpError]);
@@ -300,27 +304,34 @@ export const useAuth = (): UseAuthReturn => {
    */
   const refreshUser = useCallback(async (): Promise<void> => {
     try {
+      console.log('🔄 开始刷新用户信息...');
       setLoading(true);
       clearError();
 
+      console.log('🌐 发送用户信息请求到 /auth/profile...');
       const response = await HttpClient.get<UserInfo>('auth/profile');
 
+      console.log('📦 用户信息响应:', { success: response.success, hasData: !!response.data });
       if (response.success && response.data) {
+        console.log('✅ 用户信息获取成功:', { userId: response.data.id, username: response.data.username });
         updateAuthState({
           user: response.data,
           isAuthenticated: true,
           loading: false,
         });
+        console.log('✅ 认证状态已更新为已认证');
       } else {
         throw new Error('获取用户信息失败');
       }
     } catch (error) {
-      console.error('刷新用户信息失败:', error);
+      console.error('❌ 刷新用户信息失败:', error);
       
       // 如果是认证错误，执行登出
       if (error && typeof error === 'object' && 'code' in error && error.code === 'AUTH_ERROR') {
+        console.log('🚪 认证错误，执行自动登出...');
         await logout();
       } else {
+        console.log('📊 设置错误状态，但保持加载状态为false');
         updateAuthState({
           loading: false,
           error: handleHttpError(error as HttpError),
@@ -334,13 +345,16 @@ export const useAuth = (): UseAuthReturn => {
    */
   const checkAuthStatus = useCallback(async (): Promise<void> => {
     try {
+      console.log('🔍 开始检查认证状态...');
       setLoading(true);
 
       // 检查是否有存储的token
-      const token = await HttpClient.getToken();
+      console.log('💾 检查本地存储的token...');
+      const token = await HttpClient.getStoredToken(); // 修复：使用公共方法
       
       if (!token) {
         // 没有token，设置为未认证状态
+        console.log('❌ 未找到本地token，设置为未认证状态');
         updateAuthState({
           isAuthenticated: false,
           user: null,
@@ -349,12 +363,15 @@ export const useAuth = (): UseAuthReturn => {
         return;
       }
 
+      console.log('✅ 找到本地token，开始验证token有效性...', token.substring(0, 20) + '...');
       // 有token，尝试获取用户信息验证token有效性
       await refreshUser();
+      console.log('✅ Token验证成功，用户已认证');
     } catch (error) {
-      console.error('检查认证状态失败:', error);
+      console.error('❌ 检查认证状态失败:', error);
       
       // 认证检查失败，清除token并设置为未认证状态
+      console.log('🧽 清除无效token并重置认证状态...');
       await HttpClient.clearToken();
       updateAuthState({
         isAuthenticated: false,
@@ -362,6 +379,7 @@ export const useAuth = (): UseAuthReturn => {
         loading: false,
         error: null,
       });
+      console.log('✅ 认证状态已重置');
     }
   }, [updateAuthState, refreshUser]);
 

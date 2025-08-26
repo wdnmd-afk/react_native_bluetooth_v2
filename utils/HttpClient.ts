@@ -47,7 +47,7 @@ export class HttpClient {
   }
 
   /**
-   * 获取存储的JWT token
+   * 获取存储的JWT token（私有方法）
    * @returns Promise<string | null>
    */
   private static async getToken(): Promise<string | null> {
@@ -57,6 +57,14 @@ export class HttpClient {
       console.warn('获取token失败:', error);
       return null;
     }
+  }
+
+  /**
+   * 获取存储的JWT token（公共方法）
+   * @returns Promise<string | null>
+   */
+  static async getStoredToken(): Promise<string | null> {
+    return this.getToken();
   }
 
   /**

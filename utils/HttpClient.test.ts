@@ -63,7 +63,7 @@ export const testHttpClient = async () => {
     await HttpClient.setToken(testToken);
     console.log('✅ Token设置成功');
     
-    const retrievedToken = await HttpClient.getToken();
+    const retrievedToken = await HttpClient.getStoredToken(); // 修复：使用公共方法
     if (retrievedToken === testToken) {
       console.log('✅ Token获取成功');
     } else {
@@ -71,7 +71,7 @@ export const testHttpClient = async () => {
     }
     
     await HttpClient.clearToken();
-    const clearedToken = await HttpClient.getToken();
+    const clearedToken = await HttpClient.getStoredToken(); // 修复：使用公共方法
     if (clearedToken === null) {
       console.log('✅ Token清除成功');
     } else {
@@ -94,11 +94,11 @@ export const testLoginRequestFormat = () => {
   console.log('🧪 测试登录请求格式...');
   
   try {
-    // 模拟登录请求数据
+    // 模拟登录请求数据（已移除rememberMe字段）
     const loginData = {
       username: 'test@example.com',
       password: 'testpassword123',
-      rememberMe: true,
+      // 注意：rememberMe字段已移除，因为后端API不接受此字段
     };
     
     // 验证数据格式
@@ -114,11 +114,7 @@ export const testLoginRequestFormat = () => {
       throw new Error('密码格式错误');
     }
     
-    if (typeof loginData.rememberMe === 'boolean') {
-      console.log('✅ rememberMe格式正确');
-    } else {
-      throw new Error('rememberMe格式错误');
-    }
+    // 注意：rememberMe格式验证已移除，因为不再使用此字段
     
     console.log('🎉 登录请求格式测试完成！');
     return true;

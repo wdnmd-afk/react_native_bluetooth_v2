@@ -62,8 +62,8 @@ export interface LoginRequest {
   usernameOrEmail: string;
   /** 密码 */
   password: string;
-  /** 是否记住登录状态 */
-  rememberMe?: boolean;
+  // 注意：rememberMe字段已移除，因为后端API不接受此字段
+  // 登录状态的持久化通过前端token缓存机制实现
 }
 
 /**
