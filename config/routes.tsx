@@ -84,8 +84,64 @@ export const mainRouteConfigs: MainRouteConfig[] = [
         fontWeight: 'bold',
       },
       gestureEnabled: true,
-      // 自定义头部样式
-      headerBackTitleVisible: false,  // 隐藏返回按钮文字
+      // 隐藏返回按钮文字，统一视觉风格
+      headerBackTitleVisible: false,
+      // 专门为功能展示页面优化的动画配置
+      cardStyleInterpolator: ({ current, layouts }) => {
+        return {
+          cardStyle: {
+            transform: [
+              {
+                // 使用更快更流畅的滑入动画
+                translateX: current.progress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [layouts.screen.width * 0.3, 0], // 减少滑入距离
+                  extrapolate: 'clamp',
+                }),
+              },
+              {
+                // 轻微的缩放效果，增强视觉效果
+                scale: current.progress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.98, 1],
+                  extrapolate: 'clamp',
+                }),
+              },
+            ],
+            // 快速透明度清晰，提升视觉响应
+            opacity: current.progress.interpolate({
+              inputRange: [0, 0.3, 1],
+              outputRange: [0, 0.9, 1],
+              extrapolate: 'clamp',
+            }),
+          },
+        };
+      },
+      // 专门优化的过渡时长，更快更流畅
+      transitionSpec: {
+        open: {
+          animation: 'spring',
+          config: {
+            stiffness: 400,      // 更高的刚度，更快的响应
+            damping: 25,         // 较低的阻尼，更灵效
+            mass: 0.8,           // 较小的质量，更轻快
+            overshootClamping: false,
+            restDisplacementThreshold: 0.005,
+            restSpeedThreshold: 0.005,
+          },
+        },
+        close: {
+          animation: 'spring',
+          config: {
+            stiffness: 400,
+            damping: 25,
+            mass: 0.8,
+            overshootClamping: false,
+            restDisplacementThreshold: 0.005,
+            restSpeedThreshold: 0.005,
+          },
+        },
+      },
     },
     description: '功能展示页面 - 展示应用的所有功能特性',
   },
@@ -167,21 +223,75 @@ export const defaultStackOptions: StackNavigationOptions = {
   headerShown: false,           // 默认隐藏头部
   gestureEnabled: true,         // 启用手势导航
   gestureDirection: 'horizontal', // 水平滑动手势
-  // 页面切换动画配置
-  cardStyleInterpolator: ({ current, layouts }) => {
+  // 启用原生驱动以提升性能
+  animationEnabled: true,
+  // 优化的页面切换动画配置 - 使用弹簧动画提升丝滑度
+  cardStyleInterpolator: ({ current, next, layouts }) => {
     return {
       cardStyle: {
         transform: [
           {
+            // 使用更流畅的弹簧动画曲线
             translateX: current.progress.interpolate({
               inputRange: [0, 1],
               outputRange: [layouts.screen.width, 0],
+              extrapolate: 'clamp',
+            }),
+          },
+          {
+            // 添加轻微的缩放效果增加层次感
+            scale: current.progress.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0.95, 1],
+              extrapolate: 'clamp',
             }),
           },
         ],
+        // 添加透明度渐变效果
+        opacity: current.progress.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [0, 0.8, 1],
+          extrapolate: 'clamp',
+        }),
+      },
+      // 优化覆盖层效果
+      overlayStyle: {
+        opacity: current.progress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, 0.15],
+          extrapolate: 'clamp',
+        }),
       },
     };
   },
+  // 优化过渡时长，使动画更流畅
+  transitionSpec: {
+    open: {
+      animation: 'spring',
+      config: {
+        stiffness: 300,      // 弹簧刚度，控制动画速度
+        damping: 30,         // 阻尼，控制弹跳效果
+        mass: 1,             // 质量，影响动画惯性
+        overshootClamping: false, // 允许轻微过冲
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      },
+    },
+    close: {
+      animation: 'spring',
+      config: {
+        stiffness: 300,
+        damping: 30,
+        mass: 1,
+        overshootClamping: false,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      },
+    },
+  },
+  // 手势配置优化
+  gestureResponseDistance: 50,     // 手势识别距离
+  gestureVelocityImpact: 0.3,      // 手势速度影响
 };
 
 // 路由工具函数 - 根据名称获取路由配置

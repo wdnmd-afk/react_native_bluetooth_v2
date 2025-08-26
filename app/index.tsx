@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   SafeAreaView,
   StatusBar,
@@ -8,7 +8,9 @@ import {
   TouchableOpacity,
   FlatList,
   Platform,
+  Animated,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 
 import {useBluetooth} from '../hooks/useBluetooth';
 import {
@@ -49,8 +51,8 @@ const mockDevices: BluetoothDevice[] = [
   },
 ];
 
-// 主应用组件
-function HomeScreen(): React.JSX.Element {
+// 主应用组件 - 使用React性能优化
+const HomeScreen: React.FC = () => {
   const {
     isScanning,
     devices: scannedDevices,
@@ -70,8 +72,8 @@ function HomeScreen(): React.JSX.Element {
     openAppSettings,
   } = useBluetooth();
 
-  // 合并扫描到的设备和模拟设备，确保最小显示3个设备
-  const devices = React.useMemo(() => {
+  // 使用useMemo缓存设备列表计算，提升性能
+  const devices = useMemo(() => {
     const allDevices = [...scannedDevices];
 
     // 如果扫描到的设备少于3个，用模拟设备补充
@@ -93,32 +95,59 @@ function HomeScreen(): React.JSX.Element {
     );
   }
 
-  // 渲染设备列表项
-  const renderDeviceItem = ({item}: {item: BluetoothDevice}) => (
+  // 使用useCallback优化渲染设备项函数，避免不必要的重新渲染
+  const renderDeviceItem = useCallback(({item}: {item: BluetoothDevice}) => (
     <BluetoothDeviceItem
       device={item}
       onConnect={connectDevice}
       disabled={isScanning}
     />
-  );
+  ), [connectDevice, isScanning]);
 
-  // 获取加载消息
-  const getLoadingMessage = () => {
+  // 使用useCallback优化加载消息获取函数
+  const getLoadingMessage = useCallback(() => {
     if (isScanning) return '正在扫描设备...';
     if (isConnecting) return '正在连接设备...';
     if (isCheckingPermissions) return '正在检查权限...';
     return '';
-  };
+  }, [isScanning, isConnecting, isCheckingPermissions]);
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1a237e" />
 
-      {/* 固定头部区域 */}
-      <View style={styles.header}>
-        <Text style={styles.title}>蓝牙打印机扫描</Text>
-        <Text style={styles.subtitle}>搜索并连接附近的蓝牙设备</Text>
-      </View>
+      {/* Instagram风格的渐变头部区域 */}
+      <LinearGradient
+        colors={['#1e3a8a', '#3b82f6', '#6366f1']}
+        start={{x: 0, y: 0}}
+        end={{x: 1, y: 1}}
+        style={styles.headerGradient}
+      >
+        <View style={styles.headerContent}>
+          <View style={styles.headerIconContainer}>
+            <Text style={styles.headerIcon}>📱</Text>
+            <View style={styles.scanPulse} />
+          </View>
+          <Text style={styles.title}>蓝牙设备中心</Text>
+          <Text style={styles.subtitle}>发现并连接您的智能设备</Text>
+          
+          {/* 快速状态指示器 */}
+          <View style={styles.quickStatusContainer}>
+            <View style={[styles.statusDot, {
+              backgroundColor: isBluetoothEnabled ? '#10b981' : '#ef4444'
+            }]} />
+            <Text style={styles.quickStatusText}>
+              {isBluetoothEnabled ? '蓝牙已开启' : '蓝牙未开启'}
+            </Text>
+            <View style={[styles.statusDot, {
+              backgroundColor: hasLocationPermission && hasBluetoothPermission ? '#10b981' : '#f59e0b'
+            }]} />
+            <Text style={styles.quickStatusText}>
+              {hasLocationPermission && hasBluetoothPermission ? '权限正常' : '需要权限'}
+            </Text>
+          </View>
+        </View>
+      </LinearGradient>
 
       {/* 全局加载遮罩 */}
       <LoadingOverlay
@@ -157,7 +186,7 @@ function HomeScreen(): React.JSX.Element {
         </View>
       )}
 
-      {/* 固定控制按钮区域 */}
+      {/* 现代化控制按钮区域 */}
       <View style={styles.controlSection}>
         {!isScanning ? (
           <TouchableOpacity
@@ -169,81 +198,166 @@ function HomeScreen(): React.JSX.Element {
                 styles.scanButtonDisabled,
             ]}
             onPress={startScan}
+            activeOpacity={0.8}
             disabled={
               !hasLocationPermission ||
               !hasBluetoothPermission ||
               bluetoothState !== BluetoothState.PoweredOn
             }>
-            <View style={styles.buttonContent}>
-              <Text style={styles.scanButtonIcon}>🔍</Text>
-              <Text style={styles.scanButtonText}>开始扫描</Text>
-            </View>
-            {(!hasLocationPermission ||
-              !hasBluetoothPermission ||
-              bluetoothState !== BluetoothState.PoweredOn) && (
-              <Text style={styles.disabledHint}>
-                {!hasLocationPermission
-                  ? '需要定位权限'
-                  : !hasBluetoothPermission
-                  ? '需要蓝牙权限'
-                  : '请先开启蓝牙'}
-              </Text>
-            )}
+            <LinearGradient
+              colors={(!hasLocationPermission ||
+                !hasBluetoothPermission ||
+                bluetoothState !== BluetoothState.PoweredOn) 
+                ? ['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.1)']
+                : ['#3b82f6', '#1d4ed8', '#1e40af']
+              }
+              start={{x: 0, y: 0}}
+              end={{x: 1, y: 0}}
+              style={styles.scanButtonGradient}
+            >
+              <View style={styles.buttonContent}>
+                <View style={styles.scanIconContainer}>
+                  <Text style={styles.scanButtonIcon}>🔍</Text>
+                  <View style={styles.scanRipple} />
+                </View>
+                <Text style={styles.scanButtonText}>开始扫描</Text>
+              </View>
+              {(!hasLocationPermission ||
+                !hasBluetoothPermission ||
+                bluetoothState !== BluetoothState.PoweredOn) && (
+                <Text style={styles.disabledHint}>
+                  {!hasLocationPermission
+                    ? '需要定位权限'
+                    : !hasBluetoothPermission
+                    ? '需要蓝牙权限'
+                    : '请先开启蓝牙'}
+                </Text>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity style={styles.stopButton} onPress={stopScan}>
-            <View style={styles.buttonContent}>
-              <Text style={styles.stopButtonIcon}>⏹️</Text>
-              <Text style={styles.stopButtonText}>停止扫描</Text>
-            </View>
+          <TouchableOpacity 
+            style={styles.stopButton} 
+            onPress={stopScan}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={['#ef4444', '#dc2626', '#b91c1c']}
+              start={{x: 0, y: 0}}
+              end={{x: 1, y: 0}}
+              style={styles.stopButtonGradient}
+            >
+              <View style={styles.buttonContent}>
+                <View style={styles.stopIconContainer}>
+                  <Text style={styles.stopButtonIcon}>⏹️</Text>
+                  <View style={styles.scanningAnimation} />
+                </View>
+                <Text style={styles.stopButtonText}>停止扫描</Text>
+              </View>
+            </LinearGradient>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* 权限请求按钮 */}
+      {/* 现代化权限请求区域 */}
       {(!hasLocationPermission || !hasBluetoothPermission) && (
         <View style={styles.permissionSection}>
-          {!hasLocationPermission && (
+          <View style={styles.permissionHeader}>
+            <Text style={styles.permissionTitle}>🔒 需要权限</Text>
+            <Text style={styles.permissionSubtitle}>为了提供更好的使用体验，请允许以下权限</Text>
+          </View>
+          
+          <View style={styles.permissionCards}>
+            {!hasLocationPermission && (
+              <TouchableOpacity
+                style={styles.permissionCard}
+                onPress={requestLocationPermission}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#f59e0b', '#d97706', '#b45309']}
+                  start={{x: 0, y: 0}}
+                  end={{x: 1, y: 1}}
+                  style={styles.permissionButtonGradient}
+                >
+                  <View style={styles.buttonContent}>
+                    <Text style={styles.permissionButtonIcon}>📍</Text>
+                    <View style={styles.permissionTextContainer}>
+                      <Text style={styles.permissionButtonText}>定位权限</Text>
+                      <Text style={styles.permissionButtonSubtext}>用于扫描蓝牙设备</Text>
+                    </View>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+            
+            {!hasBluetoothPermission && (
+              <TouchableOpacity
+                style={styles.permissionCard}
+                onPress={requestBluetoothPermission}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#06b6d4', '#0891b2', '#0e7490']}
+                  start={{x: 0, y: 0}}
+                  end={{x: 1, y: 1}}
+                  style={styles.permissionButtonGradient}
+                >
+                  <View style={styles.buttonContent}>
+                    <Text style={styles.permissionButtonIcon}>📶</Text>
+                    <View style={styles.permissionTextContainer}>
+                      <Text style={styles.permissionButtonText}>蓝牙权限</Text>
+                      <Text style={styles.permissionButtonSubtext}>用于连接设备</Text>
+                    </View>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+            
             <TouchableOpacity
-              style={styles.permissionButton}
-              onPress={requestLocationPermission}>
-              <View style={styles.buttonContent}>
-                <Text style={styles.permissionButtonIcon}>📍</Text>
-                <Text style={styles.permissionButtonText}>请求定位权限</Text>
-              </View>
+              style={styles.settingsCard}
+              onPress={openAppSettings}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#8b5cf6', '#7c3aed', '#6d28d9']}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 1}}
+                style={styles.settingsButtonGradient}
+              >
+                <View style={styles.buttonContent}>
+                  <Text style={styles.settingsButtonIcon}>⚙️</Text>
+                  <View style={styles.permissionTextContainer}>
+                    <Text style={styles.settingsButtonText}>应用设置</Text>
+                    <Text style={styles.settingsButtonSubtext}>手动修改权限</Text>
+                  </View>
+                </View>
+              </LinearGradient>
             </TouchableOpacity>
-          )}
-          {!hasBluetoothPermission && (
-            <TouchableOpacity
-              style={styles.permissionButton}
-              onPress={requestBluetoothPermission}>
-              <View style={styles.buttonContent}>
-                <Text style={styles.permissionButtonIcon}>📶</Text>
-                <Text style={styles.permissionButtonText}>请求蓝牙权限</Text>
-              </View>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={styles.settingsButton}
-            onPress={openAppSettings}>
-            <View style={styles.buttonContent}>
-              <Text style={styles.settingsButtonIcon}>⚙️</Text>
-              <Text style={styles.settingsButtonText}>打开应用设置</Text>
-            </View>
-          </TouchableOpacity>
+          </View>
         </View>
       )}
 
       {/* 设备列表 */}
       <View style={styles.deviceListContainer}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            发现的设备 ({scannedDevices.length})
-          </Text>
-          {scannedDevices.length < devices.length && (
-            <Text style={styles.mockDeviceHint}>
-              包含 {devices.length - scannedDevices.length} 个示例设备
+          <View style={styles.deviceCountContainer}>
+            <Text style={styles.sectionTitle}>
+              📡 设备列表 ({scannedDevices.length})
             </Text>
+            {isScanning && (
+              <View style={styles.scanningIndicator}>
+                <View style={styles.scanningDot} />
+                <Text style={styles.scanningText}>扫描中</Text>
+              </View>
+            )}
+          </View>
+          {scannedDevices.length < devices.length && (
+            <View style={styles.mockDeviceNotice}>
+              <Text style={styles.mockDeviceHint}>
+                ✨ 包含 {devices.length - scannedDevices.length} 个示例设备
+              </Text>
+            </View>
           )}
         </View>
 
@@ -274,27 +388,103 @@ function HomeScreen(): React.JSX.Element {
       </View>
     </SafeAreaView>
   );
-}
+};
+
+// 使用React.memo优化组件，避免不必要的重新渲染
+const MemoizedHomeScreen = React.memo(HomeScreen);
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0f172a',
   },
-  header: {
-    backgroundColor: 'rgba(30, 58, 138, 0.3)',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 25,
+  
+  // Instagram风格渐变头部样式
+  headerGradient: {
     marginHorizontal: 16,
     marginTop: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.2)',
+    borderRadius: 24,
+    overflow: 'hidden',
     ...Platform.select({
       ios: {
         shadowColor: '#1e3a8a',
-        shadowOffset: { width: 0, height: 8 },
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.4,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 12,
+      },
+    }),
+  },
+  headerContent: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  headerIconContainer: {
+    position: 'relative',
+    marginBottom: 16,
+  },
+  headerIcon: {
+    fontSize: 40,
+  },
+  scanPulse: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    top: -10,
+    left: -10,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    textAlign: 'center',
+    marginBottom: 8,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  quickStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  quickStatusText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginRight: 16,
+  },
+  
+  // 控制按钮区域样式
+  controlSection: {
+    paddingHorizontal: 16,
+    marginBottom: 20,
+  },
+  scanButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#1e3a8a',
+        shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.3,
         shadowRadius: 12,
       },
@@ -303,19 +493,285 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    textAlign: 'center',
-    marginBottom: 8,
+  scanButtonGradient: {
+    paddingVertical: 18,
+    paddingHorizontal: 24,
   },
-  subtitle: {
+  scanIconContainer: {
+    position: 'relative',
+    marginRight: 12,
+  },
+  scanRipple: {
+    position: 'absolute',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    top: -4,
+    left: -4,
+  },
+  stopButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#dc2626',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  stopButtonGradient: {
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+  },
+  stopIconContainer: {
+    position: 'relative',
+    marginRight: 12,
+  },
+  scanningAnimation: {
+    position: 'absolute',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    top: -2,
+    left: -2,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scanButtonIcon: {
+    fontSize: 18,
+  },
+  scanButtonText: {
+    color: '#ffffff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  stopButtonIcon: {
+    fontSize: 18,
+  },
+  stopButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  disabledHint: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  
+  // 权限区域样式
+  permissionSection: {
+    paddingHorizontal: 16,
+    marginBottom: 20,
+  },
+  permissionHeader: {
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  permissionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  permissionSubtitle: {
+    fontSize: 14,
     color: 'rgba(255, 255, 255, 0.7)',
     textAlign: 'center',
   },
-
+  permissionCards: {
+    gap: 12,
+  },
+  permissionCard: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  settingsCard: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  permissionButtonGradient: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  settingsButtonGradient: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  permissionTextContainer: {
+    flex: 1,
+  },
+  permissionButtonIcon: {
+    fontSize: 18,
+    marginRight: 12,
+  },
+  permissionButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  permissionButtonSubtext: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+  },
+  settingsButtonIcon: {
+    fontSize: 18,
+    marginRight: 12,
+  },
+  settingsButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  settingsButtonSubtext: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+  },
+  
+  // 设备列表区域样式
+  deviceListContainer: {
+    flex: 1,
+    marginHorizontal: 16,
+    marginBottom: 100,
+    borderRadius: 20,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#1e3a8a',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.2,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+  deviceListGradient: {
+    flex: 1,
+    padding: 20,
+  },
+  sectionHeader: {
+    marginBottom: 16,
+  },
+  deviceCountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  scanningIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  scanningDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10b981',
+    marginRight: 6,
+  },
+  scanningText: {
+    fontSize: 12,
+    color: '#10b981',
+    fontWeight: '500',
+  },
+  mockDeviceNotice: {
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  mockDeviceHint: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontStyle: 'italic',
+  },
+  deviceList: {
+    flex: 1,
+  },
+  deviceListContent: {
+    paddingBottom: 20,
+  },
+  
+  // 空状态样式
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyStateAnimation: {
+    position: 'relative',
+    marginBottom: 20,
+  },
+  emptyStateIcon: {
+    fontSize: 48,
+  },
+  searchPulse: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(59, 130, 246, 0.3)',
+    top: -6,
+    left: -6,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.6)',
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  emptyStateTips: {
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignSelf: 'stretch',
+  },
+  tipsTitle: {
+    fontSize: 14,
+    color: '#3b82f6',
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  tipsText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginBottom: 4,
+  },
+  
+  // 其他样式
   connectedSection: {
     backgroundColor: 'rgba(30, 58, 138, 0.3)',
     marginHorizontal: 16,
@@ -336,27 +792,10 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  sectionHeader: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  mockDeviceHint: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontStyle: 'italic',
-  },
   connectedDevice: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   connectedDeviceName: {
     fontSize: 16,
@@ -367,188 +806,25 @@ const styles = StyleSheet.create({
   connectedDeviceId: {
     fontSize: 14,
     color: 'rgba(16, 185, 129, 0.8)',
-    marginBottom: 12,
   },
   disconnectButton: {
     backgroundColor: '#ef4444',
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
-    alignSelf: 'flex-start',
+    marginLeft: 16,
   },
   disconnectButtonIcon: {
-    fontSize: 16,
-    marginRight: 8,
+    fontSize: 14,
   },
   disconnectButtonText: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
-  },
-  controlSection: {
-    paddingHorizontal: 16,
-    marginBottom: 20,
-  },
-  scanButton: {
-    backgroundColor: '#3b82f6',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#1e3a8a',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
   },
   scanButtonDisabled: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    shadowOpacity: 0,
-    elevation: 0,
+    opacity: 0.5,
   },
-  stopButton: {
-    backgroundColor: '#ef4444',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#dc2626',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
-  },
-  buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scanButtonIcon: {
-    fontSize: 18,
-    marginRight: 10,
-  },
-  scanButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  stopButtonIcon: {
-    fontSize: 18,
-    marginRight: 10,
-  },
-  stopButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  disabledHint: {
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 8,
-    fontStyle: 'italic',
-  },
-  permissionSection: {
-    paddingHorizontal: 16,
-    marginBottom: 20,
-  },
-  permissionButton: {
-    backgroundColor: '#f59e0b',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
-  },
-  permissionButtonIcon: {
-    fontSize: 16,
-    marginRight: 8,
-  },
-  permissionButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  settingsButton: {
-    backgroundColor: '#8b5cf6',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
-  },
-  settingsButtonIcon: {
-    fontSize: 16,
-    marginRight: 8,
-  },
-  settingsButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  deviceListContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(30, 58, 138, 0.15)',
-    marginHorizontal: 16,
-    marginBottom: 100,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.1)',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#1e3a8a',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  deviceList: {
-    flex: 1,
-  },
-  deviceListContent: {
-    paddingBottom: 20,
-  },
-
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-  },
-  emptyStateIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyStateText: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-    textAlign: 'center',
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.6)',
-    textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: 20,
-  },
-
   errorText: {
     fontSize: 16,
     color: '#ef4444',
@@ -562,4 +838,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HomeScreen;
+export default MemoizedHomeScreen;

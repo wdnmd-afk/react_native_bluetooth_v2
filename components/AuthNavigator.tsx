@@ -13,7 +13,7 @@ import TabLayout from '../app/_layout';
 import { AuthStackParamList, MainStackParamList } from '../types/navigation';
 
 // 导入路由配置
-import { authRouteConfigs, mainRouteConfigs } from '../config/routes';
+import { authRouteConfigs, mainRouteConfigs, defaultStackOptions } from '../config/routes';
 
 /**
  * 认证相关页面的Stack Navigator
@@ -68,11 +68,12 @@ const MainNavigator: React.FC = () => {
   return (
     <MainStack.Navigator
       screenOptions={{
-        headerShown: false, // 默认隐藏导航栏，由各页面自己控制
-        cardStyle: { backgroundColor: 'transparent' },
-        animationEnabled: true,
-        gestureEnabled: true,
-        gestureDirection: 'horizontal',
+        // 使用优化的默认配置，提升性能和流畅度
+        ...defaultStackOptions,
+        // 禁用透明背景以提升性能，减少重复渲染
+        cardStyle: { backgroundColor: '#0f172a' },
+        // 启用冻结优化，暂停非活跃页面的重新渲染
+        freezeOnBlur: true,
       }}
       initialRouteName="TabLayout"
     >

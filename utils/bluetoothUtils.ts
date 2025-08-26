@@ -131,6 +131,9 @@ export interface BluetoothDevice {
   id: string;
   name?: string;
   rssi?: number;
+  address?: string; // 设备MAC地址
+  isConnected?: boolean; // 连接状态
+  isPaired?: boolean; // 配对状态
   advertising?: {
     localName?: string;
     manufacturerData?: any;
