@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -12,78 +12,12 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 
-// 使用React.memo优化的功能卡片组件
-const FeatureCard: React.FC<{
-  feature: {
-    id: number;
-    title: string;
-    description: string;
-    icon: string;
-    status: string;
-  };
-  onPress?: () => void;
-}> = React.memo(({ feature, onPress }) => {
-  // 使用useMemo缓存状态颜色计算，避免每次渲染时重新计算
-  const statusColor = useMemo(() => {
-    switch (feature.status) {
-      case '已实现':
-        return '#10b981';
-      case '开发中':
-        return '#f59e0b';
-      case '计划中':
-        return '#6b7280';
-      default:
-        return '#6b7280';
-    }
-  }, [feature.status]);
-
-  const statusBgColor = useMemo(() => {
-    switch (feature.status) {
-      case '已实现':
-        return 'rgba(16, 185, 129, 0.2)';
-      case '开发中':
-        return 'rgba(245, 158, 11, 0.2)';
-      case '计划中':
-        return 'rgba(107, 114, 128, 0.2)';
-      default:
-        return 'rgba(107, 114, 128, 0.2)';
-    }
-  }, [feature.status]);
-
-  return (
-    <TouchableOpacity
-      style={styles.featureCard}
-      activeOpacity={0.8}
-      onPress={onPress}
-    >
-      <View style={styles.featureHeader}>
-        <Text style={styles.featureIcon}>{feature.icon}</Text>
-        <View style={[
-          styles.statusBadge,
-          { backgroundColor: statusBgColor }
-        ]}>
-          <Text style={[
-            styles.statusText,
-            { color: statusColor }
-          ]}>
-            {feature.status}
-          </Text>
-        </View>
-      </View>
-      <Text style={styles.featureTitle}>{feature.title}</Text>
-      <Text style={styles.featureDescription}>{feature.description}</Text>
-    </TouchableOpacity>
-  );
-});
-
 type FeatureDemoNavigationProp = StackNavigationProp<RootStackParamList, 'FeatureDemo'>;
 
-// 主功能展示组件
 const FeatureDemoScreen: React.FC = () => {
   const navigation = useNavigation<FeatureDemoNavigationProp>();
 
-  // 使用useMemo缓存功能列表，避免每次渲染时重新创建
-  const features = useMemo(() => [
+  const features = [
     {
       id: 1,
       title: '蓝牙设备扫描',
@@ -126,18 +60,38 @@ const FeatureDemoScreen: React.FC = () => {
       icon: '📤',
       status: '计划中',
     },
-  ], []);
+  ];
 
-  // 使用useCallback优化返回事件处理函数，避免不必要的重新渲染
-  const handleGoBack = useCallback(() => {
+  // 使用react-navigation的标准返回方式
+  const handleGoBack = () => {
     navigation.goBack();
-  }, [navigation]);
+  };
 
-  // 使用useCallback优化功能卡片点击事件
-  const handleFeaturePress = useCallback((featureId: number) => {
-    console.log(`点击了功能: ${featureId}`);
-    // 这里可以添加具体的功能操作逻辑
-  }, []);
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case '已实现':
+        return '#10b981';
+      case '开发中':
+        return '#f59e0b';
+      case '计划中':
+        return '#6b7280';
+      default:
+        return '#6b7280';
+    }
+  };
+
+  const getStatusBgColor = (status: string) => {
+    switch (status) {
+      case '已实现':
+        return 'rgba(16, 185, 129, 0.2)';
+      case '开发中':
+        return 'rgba(245, 158, 11, 0.2)';
+      case '计划中':
+        return 'rgba(107, 114, 128, 0.2)';
+      default:
+        return 'rgba(107, 114, 128, 0.2)';
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -171,12 +125,33 @@ const FeatureDemoScreen: React.FC = () => {
         {/* 功能列表 */}
         <View style={styles.featuresSection}>
           <Text style={styles.sectionTitle}>功能特性</Text>
-          {features.map((feature) => (
-            <FeatureCard
+          {features.map((feature, index) => (
+            <TouchableOpacity
               key={feature.id}
-              feature={feature}
-              onPress={() => handleFeaturePress(feature.id)}
-            />
+              style={[
+                styles.featureItem,
+                index === 0 && styles.firstFeatureItem,
+                index === features.length - 1 && styles.lastFeatureItem,
+              ]}
+              activeOpacity={0.7}
+            >
+              <View style={styles.featureIcon}>
+                <Text style={styles.featureIconText}>{feature.icon}</Text>
+              </View>
+              <View style={styles.featureContent}>
+                <Text style={styles.featureTitle}>{feature.title}</Text>
+                <Text style={styles.featureDescription}>{feature.description}</Text>
+              </View>
+              <View style={[
+                styles.featureBadge,
+                { backgroundColor: getStatusBgColor(feature.status) }
+              ]}>
+                <Text style={[
+                  styles.badgeText,
+                  { color: getStatusColor(feature.status) }
+                ]}>{feature.status}</Text>
+              </View>
+            </TouchableOpacity>
           ))}
         </View>
 
@@ -187,10 +162,6 @@ const FeatureDemoScreen: React.FC = () => {
   );
 };
 
-// 使用React.memo优化组件，避免不必要的重新渲染
-const MemoizedFeatureDemoScreen = React.memo(FeatureDemoScreen);
-
-// 样式定义
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -252,47 +223,64 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginBottom: 16,
   },
-  // FeatureCard组件的样式
-  featureCard: {
+  featureItem: {
     backgroundColor: 'rgba(30, 58, 138, 0.15)',
-    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 1,
     borderWidth: 1,
     borderColor: 'rgba(59, 130, 246, 0.1)',
   },
-  featureHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+  firstFeatureItem: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  lastFeatureItem: {
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    marginBottom: 0,
   },
   featureIcon: {
-    fontSize: 24,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
   },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+  featureIconText: {
+    fontSize: 20,
   },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '500',
+  featureContent: {
+    flex: 1,
   },
   featureTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#ffffff',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   featureDescription: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(255, 255, 255, 0.6)',
     lineHeight: 20,
+  },
+  featureBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   bottomSpacing: {
     height: 100,
   },
 });
 
-export default MemoizedFeatureDemoScreen;
+export default FeatureDemoScreen;

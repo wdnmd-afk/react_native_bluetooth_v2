@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -27,8 +27,8 @@ const ServiceScreen: React.FC = () => {
     { id: 8, title: '打印机设置', description: '配置打印机参数和选项', status: '可用', isNew: true },
   ];
 
-  // 使用useCallback优化点击事件处理，提升响应速度
-  const handleServicePress = useCallback((service: any) => {
+  // 处理服务项点击事件，使用统一的路由工具进行页面跳转
+  const handleServicePress = (service: any) => {
     switch (service.title) {
       case '功能展示':
         // 使用类似Web端的router.push()方法跳转页面
@@ -48,7 +48,7 @@ const ServiceScreen: React.FC = () => {
         // 其他服务的处理逻辑可以在这里添加
         console.log(`点击了服务: ${service.title}`);
     }
-  }, [router]);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -83,7 +83,7 @@ const ServiceScreen: React.FC = () => {
                 service.isSpecial && styles.specialServiceItem,
                 service.isNew && styles.newServiceItem,
               ]}
-              activeOpacity={0.8}  // 提升点击响应速度
+              activeOpacity={0.7}
               onPress={() => handleServicePress(service)}
             >
               <View style={styles.serviceContent}>

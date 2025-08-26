@@ -12,9 +12,6 @@ import TabLayout from '../app/_layout';
 // 导入类型定义
 import { AuthStackParamList, MainStackParamList } from '../types/navigation';
 
-// 导入路由配置
-import { authRouteConfigs, mainRouteConfigs, defaultStackOptions } from '../config/routes';
-
 /**
  * 认证相关页面的Stack Navigator
  */
@@ -68,24 +65,20 @@ const MainNavigator: React.FC = () => {
   return (
     <MainStack.Navigator
       screenOptions={{
-        // 使用优化的默认配置，提升性能和流畅度
-        ...defaultStackOptions,
-        // 禁用透明背景以提升性能，减少重复渲染
-        cardStyle: { backgroundColor: '#0f172a' },
-        // 启用冻结优化，暂停非活跃页面的重新渲染
-        freezeOnBlur: true,
+        headerShown: false, // 使用TabLayout自己的导航
+        cardStyle: { backgroundColor: 'transparent' },
+        animationEnabled: true,
       }}
       initialRouteName="TabLayout"
     >
-      {/* 使用配置化路由，动态生成所有主应用页面 */}
-      {mainRouteConfigs.map((route) => (
-        <MainStack.Screen
-          key={route.name}
-          name={route.name}
-          component={route.component}
-          options={route.options}
-        />
-      ))}
+      <MainStack.Screen 
+        name="TabLayout" 
+        component={TabLayout}
+        options={{
+          title: '主页面',
+        }}
+      />
+      {/* 这里可以添加其他需要认证的页面 */}
     </MainStack.Navigator>
   );
 };

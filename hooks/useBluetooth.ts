@@ -51,7 +51,7 @@ export const useBluetooth = () => {
   // 连接状态
   const [isConnecting, setIsConnecting] = useState(false);
 
-  const checkBluetoothStatus = useCallback(async () => {
+  const checkBluetoothStatus = async () => {
     try {
       if (!isBluetoothLibraryAvailable()) {
         setBluetoothState(BluetoothState.Unsupported);
@@ -69,12 +69,16 @@ export const useBluetooth = () => {
       setIsBluetoothEnabled(false);
       setBluetoothState(BluetoothState.Unknown);
     }
-  }, []);
+  };
 
   /**
    * 开始扫描蓝牙设备
    */
-  const startScan = useCallback(async () => {
+  /**
+   * 开始扫描蓝牙设备
+   * @param scanConfig 扫描配置
+   */
+  const startScan = async () => {
     if (isScanning) {
       console.log('扫描已在进行中');
       return;
@@ -108,7 +112,7 @@ export const useBluetooth = () => {
       setIsScanning(false);
       isScanningRef.current = false;
     }
-  }, [hasLocationPermission, hasBluetoothPermission, bluetoothState, isScanning]);
+  };
 
   /**
    * 停止扫描蓝牙设备
@@ -149,8 +153,9 @@ export const useBluetooth = () => {
 
   /**
    * 连接到指定设备
+   * @param device 要连接的设备
    */
-  const connectDevice = useCallback(async (device: BluetoothDevice) => {
+  const connectDevice = async (device: BluetoothDevice) => {
     if (isConnecting) {
       console.log('正在连接中，请稍候...');
       return;
@@ -178,12 +183,12 @@ export const useBluetooth = () => {
     } finally {
       setIsConnecting(false);
     }
-  }, [isConnecting, connectedDevice]);
+  };
 
   /**
    * 断开当前连接的设备
    */
-  const disconnectDevice = useCallback(async () => {
+  const disconnectDevice = async () => {
     if (isConnecting) {
       console.log('正在连接中，无法断开');
       return;
@@ -200,35 +205,15 @@ export const useBluetooth = () => {
         Alert.alert('断开连接失败');
       }
     }
-  }, [isConnecting, connectedDevice]);
+  };
 
-  // 初始化 effect - 分步骤初始化，避免卡死
+  // 初始化 effect - 只运行一次
   useEffect(() => {
-    const initBluetooth = async () => {
-      try {
-        console.log('开始初始化蓝牙管理器...');
-        logEnvironmentInfo();
-        
-        // 首先初始化 BleManager
-        await BleManager.start({showAlert: false});
-        console.log('BleManager 初始化完成');
-        
-        // 延迟检查蓝牙状态，避免立即阻塞
-        setTimeout(() => {
-          checkBluetoothStatus();
-        }, 100);
-        
-        // 延迟检查权限，避免阻塞UI
-        setTimeout(() => {
-          checkPermissions();
-        }, 200);
-      } catch (error) {
-        console.error('蓝牙初始化失败:', error);
-      }
-    };
-    
-    initBluetooth();
-  }, [checkBluetoothStatus, checkPermissions]);
+    logEnvironmentInfo();
+    BleManager.start({showAlert: false});
+    checkPermissions(); // Initial permission check
+    checkBluetoothStatus();
+  }, []); // 空依赖数组，只在组件挂载时运行一次
 
   // 事件监听器 effect - 只运行一次
   useEffect(() => {
@@ -296,7 +281,7 @@ export const useBluetooth = () => {
       appStateSubscription.remove();
       listeners.forEach(listener => listener.remove());
     };
-  }, [checkPermissions, checkBluetoothStatus]);
+  }, []); // 空依赖数组，只在组件挂载时运行一次
 
   // 连接设备断开监听 effect
   useEffect(() => {
@@ -314,7 +299,7 @@ export const useBluetooth = () => {
     return () => {
       listener.remove();
     };
-  }, [connectedDevice]);
+  }, [connectedDevice]); // 只依赖 connectedDevice
 
   return {
     isScanning,
