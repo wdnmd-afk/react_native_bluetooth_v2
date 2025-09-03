@@ -9,6 +9,13 @@ import LoginScreen from '../app/login';
 import RegisterScreen from '../app/register';
 import TabLayout from '../app/_layout';
 
+// 导入主应用页面组件
+import FeatureDemoScreen from '../app/feature-demo';
+import DeviceManagementScreen from '../app/device-management';
+import PrinterSettingsScreen from '../app/printer-settings';
+import DataAnalyticsScreen from '../app/data-analytics';
+import PrinterDetailsScreen from '../app/printer-details';
+
 // 导入类型定义
 import { AuthStackParamList, MainStackParamList } from '../types/navigation';
 
@@ -71,14 +78,98 @@ const MainNavigator: React.FC = () => {
       }}
       initialRouteName="TabLayout"
     >
-      <MainStack.Screen 
-        name="TabLayout" 
+      <MainStack.Screen
+        name="TabLayout"
         component={TabLayout}
         options={{
           title: '主页面',
         }}
       />
-      {/* 这里可以添加其他需要认证的页面 */}
+
+      {/* 功能展示页面 */}
+      <MainStack.Screen
+        name="FeatureDemo"
+        component={FeatureDemoScreen}
+        options={{
+          title: '功能展示',
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#1e3a8a',
+          },
+          headerTintColor: '#ffffff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+
+      {/* 设备管理页面 */}
+      <MainStack.Screen
+        name="DeviceManagement"
+        component={DeviceManagementScreen}
+        options={{
+          title: '设备管理',
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#1e3a8a',
+          },
+          headerTintColor: '#ffffff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+
+      {/* 打印机设置页面 */}
+      <MainStack.Screen
+        name="PrinterSettings"
+        component={PrinterSettingsScreen}
+        options={{
+          title: '打印机设置',
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#1e3a8a',
+          },
+          headerTintColor: '#ffffff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+
+      {/* 数据分析页面 */}
+      <MainStack.Screen
+        name="DataAnalytics"
+        component={DataAnalyticsScreen}
+        options={{
+          title: '数据分析',
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#1e3a8a',
+          },
+          headerTintColor: '#ffffff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+
+      {/* 打印机详情页面 */}
+      <MainStack.Screen
+        name="PrinterDetails"
+        component={PrinterDetailsScreen}
+        options={{
+          title: '打印机详情',
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#1e3a8a',
+          },
+          headerTintColor: '#ffffff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
     </MainStack.Navigator>
   );
 };
@@ -104,28 +195,69 @@ const LoadingScreen: React.FC = () => {
  */
 const RootAuthNavigator: React.FC = () => {
   const { isAuthenticated, loading, user } = useAuth();
+  const [navigationState, setNavigationState] = React.useState<'loading' | 'auth' | 'main'>('loading');
+  const [stateHistory, setStateHistory] = React.useState<Array<{
+    timestamp: string;
+    isAuthenticated: boolean;
+    loading: boolean;
+    hasUser: boolean;
+    navigationState: string;
+  }>>([]);
 
-  // 详细的认证状态日志，便于问题诊断
-  console.log('🔍 AuthNavigator状态检查:', {
-    isAuthenticated,
-    loading,
-    hasUser: !!user,
-    userId: user?.id,
-    username: user?.username,
-  });
+  // 监听认证状态变化，记录详细的状态转换历史
+  React.useEffect(() => {
+    const timestamp = new Date().toISOString();
+    const newNavigationState = loading ? 'loading' : (isAuthenticated && user) ? 'main' : 'auth';
+
+    // 只在状态真正改变时更新
+    if (newNavigationState !== navigationState) {
+      console.log('🔍 AuthNavigator状态变化:', {
+        timestamp,
+        isAuthenticated,
+        loading,
+        hasUser: !!user,
+        userId: user?.id,
+        username: user?.username,
+        previousState: navigationState,
+        newState: newNavigationState,
+      });
+
+      setNavigationState(newNavigationState as any);
+
+      // 记录状态变化历史
+      const currentState = {
+        timestamp,
+        isAuthenticated,
+        loading,
+        hasUser: !!user,
+        navigationState: newNavigationState
+      };
+      setStateHistory(prev => [...prev.slice(-4), currentState]);
+    }
+  }, [isAuthenticated, loading, user]); // 移除navigationState依赖，避免循环
 
   // 显示加载状态
-  if (loading) {
+  if (loading || navigationState === 'loading') {
     console.log('⏳ 显示加载页面 - 正在检查认证状态');
     return <LoadingScreen />;
   }
 
   // 根据认证状态返回对应的导航组件
-  if (isAuthenticated && user) {
-    console.log('✅ 用户已认证，显示主应用页面:', { userId: user.id, username: user.username });
+  if ((isAuthenticated && user) || navigationState === 'main') {
+    console.log('✅ 用户已认证，显示主应用页面:', {
+      userId: user?.id,
+      username: user?.username,
+      navigationState,
+      timestamp: new Date().toISOString()
+    });
     return <MainNavigator />;
   } else {
-    console.log('❌ 用户未认证，显示认证页面');
+    console.log('❌ 用户未认证，显示认证页面:', {
+      isAuthenticated,
+      hasUser: !!user,
+      navigationState,
+      timestamp: new Date().toISOString()
+    });
     return <AuthNavigator />;
   }
 };

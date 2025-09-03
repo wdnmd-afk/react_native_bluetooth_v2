@@ -13,7 +13,7 @@ import {
   Dimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAuth } from '../hooks/useAuth';
 import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../lib/constants';
@@ -114,6 +114,9 @@ const LoginScreen: React.FC = () => {
     }
 
     try {
+      const loginStartTime = Date.now();
+      console.log('🚀 开始登录流程:', { timestamp: new Date().toISOString() });
+
       const success = await login({
         usernameOrEmail: formData.username.trim(),
         password: formData.password,
@@ -121,15 +124,49 @@ const LoginScreen: React.FC = () => {
       });
 
       if (success) {
-        // 登录成功，依赖useAuth中Toast提示和自动导航到主页面
         console.log('🎉 登录成功，等待自动跳转到主页面');
-        // 注意：移除Alert弹窗，避免干扰React状态更新和组件重新渲染
-        // AuthNavigator会根据isAuthenticated状态自动切换到主应用导航
+        console.log('⏱️ 登录耗时:', Date.now() - loginStartTime, 'ms');
+
+        // 添加导航跳转监控和备用机制
+        let navigationCheckCount = 0;
+        const maxChecks = 30; // 最多检查3秒（每100ms检查一次）
+
+        const checkNavigation = () => {
+          navigationCheckCount++;
+          console.log(`🔍 导航检查 ${navigationCheckCount}/${maxChecks}:`, {
+            timestamp: new Date().toISOString(),
+            currentRoute: navigation.getState()?.routes?.[navigation.getState()?.index || 0]?.name
+          });
+
+          // 如果检查次数超过限制，使用备用导航重置机制
+          if (navigationCheckCount >= maxChecks) {
+            console.warn('⚠️ 自动跳转超时，启用备用导航机制');
+            try {
+              // 使用导航重置强制跳转到主页面
+              navigation.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [{ name: 'TabLayout' as any }],
+                })
+              );
+              console.log('✅ 备用导航重置完成');
+            } catch (resetError) {
+              console.error('❌ 备用导航重置失败:', resetError);
+            }
+            return;
+          }
+
+          // 继续检查
+          setTimeout(checkNavigation, 100);
+        };
+
+        // 开始导航检查
+        setTimeout(checkNavigation, 100);
       }
     } catch (error) {
       console.error('登录处理失败:', error);
     }
-  }, [formData, validateForm, login]); // 移除rememberMe依赖
+  }, [formData, validateForm, login, navigation]); // 添加navigation依赖
 
   /**
    * 切换密码显示状态

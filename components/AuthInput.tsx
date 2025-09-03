@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,9 @@ import {
   StyleSheet,
   Platform,
   TextInputProps,
+  Animated,
 } from 'react-native';
-import { COLORS, SPACING, BORDER_RADIUS } from '../lib/constants';
+import { COLORS, SPACING, BORDER_RADIUS, ANIMATIONS } from '../lib/constants';
 
 /**
  * 认证输入框组件属性接口
@@ -55,9 +56,14 @@ const AuthInput: React.FC<AuthInputProps> = ({
 }) => {
   // 密码显示状态
   const [showPassword, setShowPassword] = useState(false);
-  
+
   // 焦点状态
   const [isFocused, setIsFocused] = useState(false);
+
+  // 动画值
+  const borderColorAnim = useRef(new Animated.Value(0)).current;
+  const labelPositionAnim = useRef(new Animated.Value(0)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
 
   /**
    * 切换密码显示状态
@@ -71,6 +77,23 @@ const AuthInput: React.FC<AuthInputProps> = ({
    */
   const handleFocus = (e: any) => {
     setIsFocused(true);
+
+    // 边框颜色动画
+    Animated.timing(borderColorAnim, {
+      toValue: 1,
+      duration: ANIMATIONS.duration.fast,
+      useNativeDriver: false,
+    }).start();
+
+    // 浮动标签动画
+    if (label && !textInputProps.value) {
+      Animated.timing(labelPositionAnim, {
+        toValue: 1,
+        duration: ANIMATIONS.duration.normal,
+        useNativeDriver: false,
+      }).start();
+    }
+
     textInputProps.onFocus?.(e);
   };
 
@@ -79,26 +102,118 @@ const AuthInput: React.FC<AuthInputProps> = ({
    */
   const handleBlur = (e: any) => {
     setIsFocused(false);
+
+    // 边框颜色动画
+    Animated.timing(borderColorAnim, {
+      toValue: hasError ? 2 : 0,
+      duration: ANIMATIONS.duration.fast,
+      useNativeDriver: false,
+    }).start();
+
+    // 浮动标签动画
+    if (label && !textInputProps.value) {
+      Animated.timing(labelPositionAnim, {
+        toValue: 0,
+        duration: ANIMATIONS.duration.normal,
+        useNativeDriver: false,
+      }).start();
+    }
+
     textInputProps.onBlur?.(e);
   };
 
+  /**
+   * 错误抖动动画
+   */
+  const triggerShakeAnimation = () => {
+    shakeAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+    ]).start();
+  };
+
+  // 当错误状态改变时触发抖动动画
+  React.useEffect(() => {
+    if (hasError) {
+      triggerShakeAnimation();
+    }
+  }, [hasError]);
+
+  // 处理浮动标签的初始状态
+  React.useEffect(() => {
+    const hasValue = textInputProps.value && textInputProps.value.length > 0;
+    if (hasValue || isFocused) {
+      labelPositionAnim.setValue(1);
+    } else {
+      labelPositionAnim.setValue(0);
+    }
+  }, [textInputProps.value, isFocused]); // 移除动画值依赖
+
+  // 处理边框颜色的初始状态
+  React.useEffect(() => {
+    const targetValue = hasError ? 2 : (isFocused ? 1 : 0);
+    borderColorAnim.setValue(targetValue);
+  }, [hasError, isFocused]); // 移除动画值依赖
+
+  // 动画插值
+  const borderColor = borderColorAnim.interpolate({
+    inputRange: [0, 1, 2],
+    outputRange: [COLORS.border, COLORS.borderFocus, COLORS.error],
+  });
+
+  const labelTop = labelPositionAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [16, -8],
+  });
+
+  const labelFontSize = labelPositionAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [16, 12],
+  });
+
   return (
-    <View style={[styles.container, containerStyle]}>
-      {/* 标签 */}
+    <Animated.View
+      style={[
+        styles.container,
+        containerStyle,
+        { transform: [{ translateX: shakeAnim }] }
+      ]}
+    >
+      {/* 浮动标签 */}
       {label && (
-        <View style={styles.labelContainer}>
-          <Text style={styles.label}>
+        <Animated.View
+          style={[
+            styles.floatingLabelContainer,
+            {
+              top: labelTop,
+            }
+          ]}
+        >
+          <Animated.Text
+            style={[
+              styles.floatingLabel,
+              {
+                fontSize: labelFontSize,
+                color: hasError ? COLORS.error : isFocused ? COLORS.primary : COLORS.textSecondary,
+              }
+            ]}
+          >
             {label}
             {required && <Text style={styles.required}> *</Text>}
-          </Text>
-        </View>
+          </Animated.Text>
+        </Animated.View>
       )}
 
       {/* 输入框容器 */}
-      <View
+      <Animated.View
         style={[
           styles.inputContainer,
-          isFocused && styles.inputContainerFocused,
+          {
+            borderColor: borderColor,
+          },
           hasError && styles.inputContainerError,
         ]}
       >
@@ -140,7 +255,7 @@ const AuthInput: React.FC<AuthInputProps> = ({
             </Text>
           </TouchableOpacity>
         )}
-      </View>
+      </Animated.View>
 
       {/* 错误信息 */}
       {error && (
@@ -148,13 +263,14 @@ const AuthInput: React.FC<AuthInputProps> = ({
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.lg,
+    position: 'relative',
   },
   labelContainer: {
     marginBottom: SPACING.sm,
@@ -162,54 +278,47 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: COLORS.text,
+  },
+  floatingLabelContainer: {
+    position: 'absolute',
+    left: SPACING.md,
+    zIndex: 1,
+    backgroundColor: COLORS.background,
+    paddingHorizontal: SPACING.xs,
+  },
+  floatingLabel: {
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
   required: {
-    color: '#ef4444',
+    color: COLORS.error,
     fontSize: 16,
     fontWeight: '600',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
-    minHeight: 50,
-    // Instagram风格的渐变边框效果
+    backgroundColor: COLORS.surfaceAlpha,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 2,
+    minHeight: 56,
+    paddingHorizontal: SPACING.md,
+    // 现代化的阴影效果
     ...Platform.select({
       ios: {
-        shadowColor: 'rgba(59, 130, 246, 0.3)',
+        shadowColor: COLORS.primary,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-  inputContainerFocused: {
-    borderColor: '#3b82f6',
-    borderWidth: 2,
-    // Instagram风格的焦点效果
-    ...Platform.select({
-      ios: {
-        shadowColor: '#3b82f6',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
         shadowRadius: 8,
       },
       android: {
-        elevation: 4,
+        elevation: 3,
       },
     }),
   },
   inputContainerError: {
-    borderColor: '#ef4444',
-    borderWidth: 2,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    backgroundColor: COLORS.errorAlpha,
   },
   leftIconContainer: {
     paddingLeft: SPACING.md,
@@ -227,15 +336,14 @@ const styles = StyleSheet.create({
   },
   iconText: {
     fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: COLORS.textSecondary,
   },
   textInput: {
     flex: 1,
     fontSize: 16,
-    color: '#ffffff',
-    paddingHorizontal: SPACING.md,
+    color: COLORS.text,
+    paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.md,
-    // Instagram风格的字体
     fontWeight: '400',
     letterSpacing: 0.5,
   },
@@ -251,9 +359,8 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 12,
-    color: '#ef4444',
+    color: COLORS.error,
     fontWeight: '500',
-    // Instagram风格的错误提示
     letterSpacing: 0.3,
   },
 });

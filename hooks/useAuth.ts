@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
 import { HttpClient } from '../utils/HttpClient';
 import { LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, UserInfo, HttpError } from '../types/http';
@@ -54,12 +54,30 @@ export const useAuth = (): UseAuthReturn => {
     error: null,
   });
 
+  // 防护标志，避免重复的认证检查
+  const isCheckingAuth = useRef(false);
+
   /**
    * 更新认证状态
    */
   const updateAuthState = useCallback((updates: Partial<AuthState>) => {
-    setAuthState(prev => ({ ...prev, ...updates }));
-  }, []);
+    console.log('🔄 开始更新认证状态:', {
+      timestamp: new Date().toISOString(),
+      updates
+    });
+
+    setAuthState(prev => {
+      const newState = { ...prev, ...updates };
+      const stateChanged = JSON.stringify(prev) !== JSON.stringify(newState);
+      console.log('✅ 认证状态更新完成:', {
+        timestamp: new Date().toISOString(),
+        stateChanged,
+        newAuth: newState.isAuthenticated,
+        newLoading: newState.loading
+      });
+      return newState;
+    });
+  }, []); // 移除authState依赖，避免无限循环
 
   /**
    * 设置加载状态
@@ -152,6 +170,16 @@ export const useAuth = (): UseAuthReturn => {
           error: null,
         });
         console.log('✅ 认证状态更新成功', { isAuthenticated: true, userId: user.id });
+
+        // 添加状态更新验证机制
+        setTimeout(() => {
+          console.log('🔍 验证状态更新结果:', {
+            timestamp: new Date().toISOString(),
+            expectedAuth: true,
+            expectedUser: user.id,
+            message: '如果此日志后没有看到主页面，说明状态更新可能存在问题'
+          });
+        }, 50);
 
         console.log('🎉 登录流程完成:', { userId: user.id, username: user.username });
         Toast.success(`欢迎回来，${user.username}！`); // 修复：移除第二个参数，使用默认duration
@@ -305,7 +333,6 @@ export const useAuth = (): UseAuthReturn => {
   const refreshUser = useCallback(async (): Promise<void> => {
     try {
       console.log('🔄 开始刷新用户信息...');
-      setLoading(true);
       clearError();
 
       console.log('🌐 发送用户信息请求到 /auth/profile...');
@@ -325,13 +352,13 @@ export const useAuth = (): UseAuthReturn => {
       }
     } catch (error) {
       console.error('❌ 刷新用户信息失败:', error);
-      
+
       // 如果是认证错误，执行登出
       if (error && typeof error === 'object' && 'code' in error && error.code === 'AUTH_ERROR') {
         console.log('🚪 认证错误，执行自动登出...');
         await logout();
       } else {
-        console.log('📊 设置错误状态，但保持加载状态为false');
+        console.log('📊 设置错误状态，loading设为false');
         updateAuthState({
           loading: false,
           error: handleHttpError(error as HttpError),
@@ -341,17 +368,24 @@ export const useAuth = (): UseAuthReturn => {
   }, [updateAuthState, clearError, handleHttpError, logout]);
 
   /**
-   * 检查认证状态
+   * 检查认证状态 - 添加防护机制避免重复调用
    */
   const checkAuthStatus = useCallback(async (): Promise<void> => {
+    // 防护机制：如果已经在检查中，直接返回
+    if (isCheckingAuth.current) {
+      console.log('⚠️ 认证状态检查已在进行中，跳过重复调用');
+      return;
+    }
+
     try {
       console.log('🔍 开始检查认证状态...');
-      setLoading(true);
+      isCheckingAuth.current = true;
+      updateAuthState({ loading: true });
 
       // 检查是否有存储的token
       console.log('💾 检查本地存储的token...');
-      const token = await HttpClient.getStoredToken(); // 修复：使用公共方法
-      
+      const token = await HttpClient.getStoredToken();
+
       if (!token) {
         // 没有token，设置为未认证状态
         console.log('❌ 未找到本地token，设置为未认证状态');
@@ -359,17 +393,18 @@ export const useAuth = (): UseAuthReturn => {
           isAuthenticated: false,
           user: null,
           loading: false,
+          error: null,
         });
         return;
       }
 
-      console.log('✅ 找到本地token，开始验证token有效性...', token.substring(0, 20) + '...');
+      console.log('✅ 找到本地token，开始验证token有效性...');
       // 有token，尝试获取用户信息验证token有效性
       await refreshUser();
       console.log('✅ Token验证成功，用户已认证');
     } catch (error) {
       console.error('❌ 检查认证状态失败:', error);
-      
+
       // 认证检查失败，清除token并设置为未认证状态
       console.log('🧽 清除无效token并重置认证状态...');
       await HttpClient.clearToken();
@@ -380,15 +415,19 @@ export const useAuth = (): UseAuthReturn => {
         error: null,
       });
       console.log('✅ 认证状态已重置');
+    } finally {
+      // 确保防护标志被重置
+      isCheckingAuth.current = false;
+      console.log('🔓 认证检查完成，重置防护标志');
     }
   }, [updateAuthState, refreshUser]);
 
   /**
-   * 组件挂载时检查认证状态
+   * 组件挂载时检查认证状态 - 只执行一次
    */
   useEffect(() => {
     checkAuthStatus();
-  }, [checkAuthStatus]);
+  }, []); // 空依赖数组，只在组件挂载时执行一次
 
   return {
     // 状态
