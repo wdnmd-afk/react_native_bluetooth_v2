@@ -13,13 +13,14 @@ import {
   Dimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import { useNavigation, CommonActions } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { useAuth } from '../hooks/useAuth';
-import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../lib/constants';
+import { useAuthContext } from '../components/AuthProvider';
+import { COLORS, SPACING, BORDER_RADIUS, SHADOWS, FONT_SIZES, FONT_WEIGHTS } from '../lib/constants';
 import LoadingOverlay from '../components/LoadingOverlay';
 import AuthInput from '../components/AuthInput';
 import SocialButton, { SocialButtonGroup } from '../components/SocialButton';
+import GradientButton from '../components/GradientButton';
 import { AuthStackParamList } from '../types/navigation';
 
 // 导航类型定义
@@ -34,7 +35,7 @@ const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
 
   // 认证状态管理
-  const { login, loading, error, clearError } = useAuth();
+  const { login, loading, error, clearError } = useAuthContext();
   
   // 表单状态
   const [formData, setFormData] = useState({
@@ -105,7 +106,7 @@ const LoginScreen: React.FC = () => {
   }, [formData]);
 
   /**
-   * 处理登录
+   * 处理登录 - 改进用户体验和错误处理
    */
   const handleLogin = useCallback(async () => {
     // 表单验证
@@ -113,60 +114,38 @@ const LoginScreen: React.FC = () => {
       return;
     }
 
+    // 清除之前的错误
+    clearError();
+
     try {
       const loginStartTime = Date.now();
-      console.log('🚀 开始登录流程:', { timestamp: new Date().toISOString() });
+      console.log('🚀 开始登录流程:', {
+        timestamp: new Date().toISOString(),
+        username: formData.username.trim()
+      });
 
       const success = await login({
         usernameOrEmail: formData.username.trim(),
         password: formData.password,
-        // 注意：rememberMe字段已移除，因为后端API不接受此字段
       });
 
       if (success) {
-        console.log('🎉 登录成功，等待自动跳转到主页面');
+        console.log('🎉 登录成功，等待AuthNavigator自动切换到主页面');
         console.log('⏱️ 登录耗时:', Date.now() - loginStartTime, 'ms');
+        console.log('📋 登录流程完成，由AuthNavigator负责页面切换');
 
-        // 添加导航跳转监控和备用机制
-        let navigationCheckCount = 0;
-        const maxChecks = 30; // 最多检查3秒（每100ms检查一次）
-
-        const checkNavigation = () => {
-          navigationCheckCount++;
-          console.log(`🔍 导航检查 ${navigationCheckCount}/${maxChecks}:`, {
-            timestamp: new Date().toISOString(),
-            currentRoute: navigation.getState()?.routes?.[navigation.getState()?.index || 0]?.name
-          });
-
-          // 如果检查次数超过限制，使用备用导航重置机制
-          if (navigationCheckCount >= maxChecks) {
-            console.warn('⚠️ 自动跳转超时，启用备用导航机制');
-            try {
-              // 使用导航重置强制跳转到主页面
-              navigation.dispatch(
-                CommonActions.reset({
-                  index: 0,
-                  routes: [{ name: 'TabLayout' as any }],
-                })
-              );
-              console.log('✅ 备用导航重置完成');
-            } catch (resetError) {
-              console.error('❌ 备用导航重置失败:', resetError);
-            }
-            return;
-          }
-
-          // 继续检查
-          setTimeout(checkNavigation, 100);
-        };
-
-        // 开始导航检查
-        setTimeout(checkNavigation, 100);
+        // 清空表单（可选）
+        // setFormData({ username: '', password: '' });
+      } else {
+        console.log('❌ 登录失败，显示错误信息');
+        // 错误信息已经在useAuth中处理并显示
       }
     } catch (error) {
-      console.error('登录处理失败:', error);
+      console.error('❌ 登录处理失败:', error);
+      // 显示通用错误信息
+      Alert.alert('登录失败', '登录过程中发生错误，请重试');
     }
-  }, [formData, validateForm, login, navigation]); // 添加navigation依赖
+  }, [formData, validateForm, login, clearError]);
 
   /**
    * 切换密码显示状态
@@ -200,9 +179,9 @@ const LoginScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Instagram风格渐变背景 */}
+      {/* 深海蓝到天空蓝的对角渐变背景 - 现代商务科技风 */}
       <LinearGradient
-        colors={['#0f172a', '#1e3a8a', '#3730a3']}
+        colors={COLORS.login.backgroundGradient}
         style={styles.gradientBackground}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -217,97 +196,107 @@ const LoginScreen: React.FC = () => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {/* 头部标题区域 - 现代简洁风格 */}
-            <View style={styles.header}>
-              <Text style={styles.title}>欢迎回来</Text>
-              <Text style={styles.subtitle}>登录您的账户以继续使用</Text>
-            </View>
-
-          {/* 登录表单 */}
-          <View style={styles.formContainer}>
-            {/* 用户名/邮箱输入框 */}
-            <AuthInput
-              label="用户名或邮箱"
-              value={formData.username}
-              onChangeText={(value) => updateFormData('username', value)}
-              placeholder="请输入用户名或邮箱"
-              leftIcon="👤"
-              error={validationErrors.username}
-              hasError={!!validationErrors.username}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              returnKeyType="next"
-              editable={!loading}
-              required
-            />
-
-            {/* 密码输入框 */}
-            <AuthInput
-              label="密码"
-              value={formData.password}
-              onChangeText={(value) => updateFormData('password', value)}
-              placeholder="请输入密码"
-              leftIcon="🔒"
-              error={validationErrors.password}
-              hasError={!!validationErrors.password}
-              isPassword
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="done"
-              onSubmitEditing={handleLogin}
-              editable={!loading}
-              required
-            />
-
-            {/* 注意：记住登录复选框已移除，因为后端API不支持rememberMe字段 */}
-            {/* 登录状态的持久化通过HttpClient默认的token缓存机制实现 */}
-
-            {/* 全局错误提示 */}
-            {error ? (
-              <View style={styles.errorContainer}>
-                <Text style={styles.globalErrorText}>{error}</Text>
+            {/* 极简居中布局容器 */}
+            <View style={styles.centerContainer}>
+              {/* 圆形用户图标 */}
+              <View style={styles.userIconContainer}>
+                <View style={styles.userIcon}>
+                  <Text style={styles.userIconText}>👤</Text>
+                </View>
               </View>
-            ) : null}
 
-            {/* 登录按钮 */}
-            <TouchableOpacity
-              style={[styles.loginButton, loading && styles.loginButtonDisabled]}
-              onPress={handleLogin}
-              disabled={loading}
-            >
-              <Text style={styles.loginButtonText}>
-                {loading ? '登录中...' : '登录'}
-              </Text>
-            </TouchableOpacity>
+              {/* 标题 */}
+              <Text style={styles.loginTitle}>MEMBER LOGIN</Text>
 
-            {/* 忘记密码链接 */}
-            <TouchableOpacity
-              style={styles.forgotPasswordContainer}
-              onPress={handleForgotPassword}
-              disabled={loading}
-            >
-              <Text style={styles.forgotPasswordText}>忘记密码？</Text>
-            </TouchableOpacity>
-          </View>
+              {/* 登录表单 */}
+              <View style={styles.formContainer}>
 
-          {/* 底部注册链接 */}
-          <View style={styles.bottomContainer}>
-            <Text style={styles.bottomText}>还没有账号？</Text>
-            <TouchableOpacity
-              onPress={handleNavigateToRegister}
-              disabled={loading}
-            >
-              <Text style={styles.registerLinkText}>立即注册</Text>
-            </TouchableOpacity>
-          </View>
+                {/* Username input */}
+                <AuthInput
+                  value={formData.username}
+                  onChangeText={(value) => updateFormData('username', value)}
+                  placeholder="Username"
+                  leftIcon="👤"
+                  error={validationErrors.username}
+                  hasError={!!validationErrors.username}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                  returnKeyType="next"
+                  editable={!loading}
+                  required
+                />
+
+                {/* Password input */}
+                <AuthInput
+                  value={formData.password}
+                  onChangeText={(value) => updateFormData('password', value)}
+                  placeholder="Password"
+                  leftIcon="🔒"
+                  error={validationErrors.password}
+                  hasError={!!validationErrors.password}
+                  isPassword
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  onSubmitEditing={handleLogin}
+                  editable={!loading}
+                  required
+                />
+
+                {/* Remember me checkbox */}
+                <View style={styles.rememberMeContainer}>
+                  <TouchableOpacity style={styles.checkboxContainer}>
+                    <View style={styles.checkbox}>
+                      <Text style={styles.checkmark}>✓</Text>
+                    </View>
+                    <Text style={styles.rememberMeText}>Remember me</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleForgotPassword}
+                    disabled={loading}
+                  >
+                    <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Global error message */}
+                {error ? (
+                  <View style={styles.errorContainer}>
+                    <Text style={styles.globalErrorText}>{error}</Text>
+                  </View>
+                ) : null}
+
+                {/* Login button */}
+                <GradientButton
+                  title="Login"
+                  onPress={handleLogin}
+                  disabled={loading}
+                  loading={loading}
+                  gradientColors={[COLORS.login.buttonBackground, COLORS.login.buttonBackground]}
+                  variant="primary"
+                />
+
+                {/* Registration section */}
+                <View style={styles.registerSection}>
+                  <Text style={styles.registerPrompt}>Not a member?</Text>
+                  <TouchableOpacity
+                    style={styles.createAccountButton}
+                    onPress={handleNavigateToRegister}
+                    disabled={loading}
+                  >
+                    <Text style={styles.createAccountText}>Create account</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* 加载遮罩 */}
+      {/* Loading overlay */}
       <LoadingOverlay
         visible={loading}
-        message="正在登录..."
+        message="Logging in..."
       />
     </LinearGradient>
   </SafeAreaView>
@@ -330,83 +319,82 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.xl,
-    minHeight: Math.max(Dimensions.get('window').height - 100, 600), // 最小高度600，确保不超出屏幕
+    minHeight: Math.max(Dimensions.get('window').height - 100, 600),
   },
-  header: {
+  // 极简居中布局容器
+  centerContainer: {
     alignItems: 'center',
-    marginBottom: SPACING.xl * 2.5, // 增加底部间距
-    paddingTop: SPACING.xl * 1.5, // 增加顶部间距
+    justifyContent: 'center',
+    width: '100%',
+    maxWidth: 400,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    textAlign: 'center',
-    marginBottom: SPACING.md,
-    letterSpacing: 1,
-    // 现代化的文字阴影
+
+  // 圆形用户图标容器
+  userIconContainer: {
+    marginBottom: SPACING.xl,
+  },
+
+  userIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.login.userIconBackground,
+    borderWidth: 3,
+    borderColor: COLORS.login.userIconBorder,
+    justifyContent: 'center',
+    alignItems: 'center',
+    // 图标阴影效果
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: 'rgba(255, 255, 255, 0.3)',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+
+  userIconText: {
+    fontSize: 32,
+    color: COLORS.login.userIconColor,
+  },
+
+  // 登录标题
+  loginTitle: {
+    fontSize: FONT_SIZES.xl + 2,
+    fontWeight: FONT_WEIGHTS.bold,
+    color: COLORS.login.titleText,
+    textAlign: 'center',
+    marginBottom: SPACING.xl * 1.5,
+    letterSpacing: 2,
+    // 文字阴影效果
+    ...Platform.select({
+      ios: {
+        shadowColor: COLORS.login.titleTextShadow,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
+        shadowOpacity: 1,
         shadowRadius: 4,
       },
       android: {
-        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowColor: COLORS.login.titleTextShadow,
         textShadowOffset: { width: 0, height: 2 },
         textShadowRadius: 4,
       },
     }),
   },
-  subtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
+  // 移除title和subtitle样式，采用极简设计
+  // 极简表单容器 - 无背景无边框
   formContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: BORDER_RADIUS.xl + 4, // 增加圆角
-    padding: SPACING.xl + 4, // 增加内边距
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    marginBottom: SPACING.xl,
-    marginHorizontal: SPACING.xs, // 增加左右间距
-    // 注意：React Native不支持backdropFilter，已移除
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.25,
-        shadowRadius: 20,
-      },
-      android: {
-        elevation: 12,
-      },
-    }),
+    width: '100%',
+    alignItems: 'center',
   },
-  inputContainer: {
-    marginBottom: SPACING.lg,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
-    marginBottom: SPACING.sm,
-  },
-  textInput: {
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
-    borderRadius: BORDER_RADIUS.md,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
-    fontSize: 16,
-    color: '#ffffff',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
-  },
+  // 移除不再需要的输入框样式，使用AuthInput组件
   textInputError: {
     borderColor: '#ef4444',
   },
@@ -425,80 +413,115 @@ const styles = StyleSheet.create({
   passwordToggleText: {
     fontSize: 18,
   },
-  // 注意：rememberMe相关样式已移除，因为不再需要记住登录功能
+  // 优化的错误提示样式
   errorContainer: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-    borderRadius: BORDER_RADIUS.sm,
-    padding: SPACING.md,
+    backgroundColor: COLORS.login.errorBackground, // 使用设计系统中的错误背景色
+    borderRadius: BORDER_RADIUS.lg, // 使用更大的圆角
+    padding: SPACING.lg, // 增加内边距
     marginBottom: SPACING.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
-  },
-  errorText: {
-    color: '#ef4444',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  globalErrorText: {
-    color: '#ef4444',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  loginButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: BORDER_RADIUS.lg,
-    paddingVertical: SPACING.md + 4,
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-    // Instagram风格的按钮效果
+    borderWidth: 1.5, // 增加边框宽度
+    borderColor: COLORS.login.errorBorder, // 使用设计系统中的错误边框色
+    // 添加微妙的阴影
     ...Platform.select({
       ios: {
-        shadowColor: '#3b82f6',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
+        shadowColor: COLORS.error,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
       },
       android: {
-        elevation: 8,
+        elevation: 3,
       },
     }),
   },
-  loginButtonDisabled: {
-    backgroundColor: 'rgba(59, 130, 246, 0.5)',
-    shadowOpacity: 0,
-    elevation: 0,
+  errorText: {
+    color: COLORS.error, // 使用设计系统中的错误颜色
+    fontSize: FONT_SIZES.xs, // 使用设计系统中的字体大小
+    fontWeight: FONT_WEIGHTS.medium, // 添加字体权重
+    marginTop: SPACING.xs,
+    lineHeight: 16, // 添加行高
   },
-  loginButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+  globalErrorText: {
+    color: COLORS.login.errorText, // 使用设计系统中的登录错误文本色
+    fontSize: FONT_SIZES.sm, // 使用设计系统中的字体大小
+    fontWeight: FONT_WEIGHTS.medium, // 添加字体权重
+    textAlign: 'center',
+    lineHeight: 20, // 添加行高，提升可读性
+    letterSpacing: 0.3, // 添加字母间距
   },
-  forgotPasswordContainer: {
-    alignItems: 'center',
-    paddingVertical: SPACING.sm,
-  },
-  forgotPasswordText: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  bottomContainer: {
+  // 登录按钮样式已移至GradientButton组件中
+  // 记住我和忘记密码行
+  rememberMeContainer: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: SPACING.lg,
+    paddingHorizontal: SPACING.sm,
+  },
+
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 3,
+    borderWidth: 1.5,
+    borderColor: COLORS.login.checkboxBorder,
+    backgroundColor: COLORS.login.checkboxBackground,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: SPACING.xl, // 增加上下间距
-    marginTop: SPACING.lg, // 增加顶部间距
+    marginRight: SPACING.sm,
   },
-  bottomText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 16,
-    marginRight: SPACING.xs,
+
+  checkmark: {
+    color: COLORS.login.checkboxCheck,
+    fontSize: 12,
+    fontWeight: FONT_WEIGHTS.bold,
   },
-  registerLinkText: {
-    color: '#3b82f6',
-    fontSize: 16,
-    fontWeight: '600',
+
+  rememberMeText: {
+    color: COLORS.login.secondaryText,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: FONT_WEIGHTS.normal,
+  },
+
+  forgotPasswordText: {
+    color: COLORS.login.linkText,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: FONT_WEIGHTS.normal,
+    textDecorationLine: 'underline',
+  },
+
+  // 注册区域
+  registerSection: {
+    alignItems: 'center',
+    marginTop: SPACING.xl,
+  },
+
+  registerPrompt: {
+    color: COLORS.login.secondaryText,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: FONT_WEIGHTS.normal,
+    marginBottom: SPACING.sm,
+  },
+
+  createAccountButton: {
+    borderWidth: 1.5,
+    borderColor: COLORS.login.buttonSecondaryBorder,
+    borderRadius: BORDER_RADIUS.xxl,
+    paddingHorizontal: SPACING.xl * 2,
+    paddingVertical: SPACING.md,
+    backgroundColor: COLORS.login.buttonSecondaryBackground,
+  },
+
+  createAccountText: {
+    color: COLORS.login.buttonSecondaryText,
+    fontSize: FONT_SIZES.md,
+    fontWeight: FONT_WEIGHTS.medium,
     letterSpacing: 0.5,
   },
 });

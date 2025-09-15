@@ -66,6 +66,49 @@ export const COLORS = {
   gradientSecondary: ['#1e293b', '#334155', '#475569'],
   gradientSuccess: ['#10b981', '#34d399'],
   gradientError: ['#ef4444', '#f87171'],
+
+  // 登录界面专用色彩 - 极简圆弧形白色边框设计
+  login: {
+    // 背景渐变色 - 保持深海蓝到天空蓝的对角渐变
+    backgroundGradient: ['#112d4e', '#3f72af'] as string[],
+    // 圆形用户图标
+    userIconBackground: '#FFFFFF',
+    userIconBorder: '#FFFFFF',
+    userIconColor: '#3f72af',
+    // 标题文字
+    titleText: '#FFFFFF',
+    titleTextShadow: 'rgba(0, 0, 0, 0.3)',
+    // 输入框专用色彩 - 圆弧形白色边框设计
+    inputBackground: 'rgba(255, 255, 255, 0.1)', // 半透明白色背景
+    inputBackgroundFocus: 'rgba(255, 255, 255, 0.15)',
+    inputBorder: '#FFFFFF', // 白色边框
+    inputBorderFocus: '#FFFFFF',
+    inputText: '#FFFFFF', // 白色文字
+    inputPlaceholder: 'rgba(255, 255, 255, 0.7)', // 半透明白色占位符
+    inputLabel: '#FFFFFF',
+    // 按钮设计 - 圆弧形白色按钮
+    buttonBackground: '#FFFFFF',
+    buttonBackgroundHover: 'rgba(255, 255, 255, 0.9)',
+    buttonBackgroundDisabled: 'rgba(255, 255, 255, 0.5)',
+    buttonText: '#3f72af', // 蓝色文字在白色按钮上
+    buttonShadow: 'rgba(255, 255, 255, 0.3)',
+    // 次要按钮 - 透明背景白色边框
+    buttonSecondaryBackground: 'transparent',
+    buttonSecondaryBorder: '#FFFFFF',
+    buttonSecondaryText: '#FFFFFF',
+    // 错误状态色彩
+    errorBackground: 'rgba(255, 255, 255, 0.1)',
+    errorBorder: '#FFFFFF',
+    errorText: '#FFFFFF',
+    // 链接和辅助文字 - 白色系
+    linkText: '#FFFFFF',
+    linkTextHover: 'rgba(255, 255, 255, 0.8)',
+    secondaryText: 'rgba(255, 255, 255, 0.7)',
+    // 复选框和小元素
+    checkboxBorder: '#FFFFFF',
+    checkboxBackground: 'transparent',
+    checkboxCheck: '#FFFFFF',
+  },
 } as const;
 
 export const SPACING = {
@@ -81,6 +124,7 @@ export const BORDER_RADIUS = {
   md: 12,
   lg: 15,
   xl: 20,
+  xxl: 28, // 新增：用于圆弧形输入框和按钮的高圆角设计
 };
 
 export const FONT_SIZES = {
@@ -90,7 +134,18 @@ export const FONT_SIZES = {
   lg: 18,
   xl: 24,
   xxl: 28,
+  xxxl: 32, // 用于登录页面标题
 };
+
+// 字体权重常量
+export const FONT_WEIGHTS = {
+  light: '300',
+  normal: '400',
+  medium: '500',
+  semibold: '600',
+  bold: '700',
+  extrabold: '800',
+} as const;
 
 // 现代化阴影系统
 export const SHADOWS = {
@@ -135,6 +190,28 @@ export const SHADOWS = {
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8,
+  },
+  // 登录界面专用阴影
+  loginForm: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  loginButton: {
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  loginInput: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
 } as const;
 

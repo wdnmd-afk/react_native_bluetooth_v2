@@ -4,6 +4,7 @@ import { navigationRef } from './utils/navigation';
 import RootAuthNavigator from './components/AuthNavigator';
 import { ToastProvider, useToast } from './components/ToastProvider';
 import { setGlobalToastRef } from './hooks/useToast';
+import { AuthProvider } from './components/AuthProvider';
 
 /**
  * 内部App组件，用于设置全局Toast引用
@@ -27,12 +28,14 @@ const InnerApp: React.FC = () => {
 
 /**
  * 应用根组件
- * 集成认证导航系统和Toast提供者
+ * 集成认证导航系统、Toast提供者和认证状态提供者
  */
 function App(): React.JSX.Element {
   return (
     <ToastProvider>
-      <InnerApp />
+      <AuthProvider>
+        <InnerApp />
+      </AuthProvider>
     </ToastProvider>
   );
 }

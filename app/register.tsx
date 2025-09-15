@@ -14,10 +14,11 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { useAuth } from '../hooks/useAuth';
-import { COLORS, SPACING, BORDER_RADIUS } from '../lib/constants';
+import { useAuthContext } from '../components/AuthProvider';
+import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES, FONT_WEIGHTS } from '../lib/constants';
 import LoadingOverlay from '../components/LoadingOverlay';
 import AuthInput from '../components/AuthInput';
+import GradientButton from '../components/GradientButton';
 import { AuthStackParamList } from '../types/navigation';
 
 // 导航类型定义
@@ -32,7 +33,7 @@ const RegisterScreen: React.FC = () => {
   const navigation = useNavigation<RegisterScreenNavigationProp>();
 
   // 认证状态管理
-  const { register, loading, error, clearError } = useAuth();
+  const { register, loading, error, clearError } = useAuthContext();
   
   // 表单状态
   const [formData, setFormData] = useState({
@@ -152,12 +153,12 @@ const RegisterScreen: React.FC = () => {
       });
 
       if (success) {
-        Alert.alert('注册成功', '欢迎加入我们！', [
+        Alert.alert('Registration Successful', 'Welcome to our platform!', [
           {
-            text: '确定',
+            text: 'OK',
             onPress: () => {
-              // TODO: 导航到主页面或登录页面
-              console.log('注册成功，导航到主页面');
+              // TODO: Navigate to main page or login page
+              console.log('Registration successful, navigating to main page');
             },
           },
         ]);
@@ -185,9 +186,9 @@ const RegisterScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Instagram风格渐变背景 */}
+      {/* 深海蓝到天空蓝的对角渐变背景 - 与登录界面一致 */}
       <LinearGradient
-        colors={['#0f172a', '#1e3a8a', '#3730a3']}
+        colors={COLORS.login.backgroundGradient}
         style={styles.gradientBackground}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -202,20 +203,25 @@ const RegisterScreen: React.FC = () => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* 头部标题区域 - 现代简洁风格 */}
-          <View style={styles.header}>
-            <Text style={styles.title}>创建账户</Text>
-            <Text style={styles.subtitle}>加入我们，开始您的智能打印之旅</Text>
-          </View>
+          {/* 极简居中布局容器 */}
+          <View style={styles.centerContainer}>
+            {/* 圆形用户图标 */}
+            <View style={styles.userIconContainer}>
+              <View style={styles.userIcon}>
+                <Text style={styles.userIconText}>👤</Text>
+              </View>
+            </View>
 
-          {/* 注册表单 */}
-          <View style={styles.formContainer}>
-            {/* 用户名输入框 */}
+            {/* 标题 */}
+            <Text style={styles.registerTitle}>MEMBER REGISTER</Text>
+
+            {/* 注册表单 */}
+            <View style={styles.formContainer}>
+            {/* Username input */}
             <AuthInput
-              label="用户名"
               value={formData.username}
               onChangeText={(value) => updateFormData('username', value)}
-              placeholder="请输入用户名"
+              placeholder="Username"
               leftIcon="👤"
               error={validationErrors.username}
               hasError={!!validationErrors.username}
@@ -225,12 +231,11 @@ const RegisterScreen: React.FC = () => {
               required
             />
 
-            {/* 邮箱输入框 */}
+            {/* Email input */}
             <AuthInput
-              label="邮箱地址"
               value={formData.email}
               onChangeText={(value) => updateFormData('email', value)}
-              placeholder="请输入邮箱地址"
+              placeholder="Email"
               leftIcon="📧"
               error={validationErrors.email}
               hasError={!!validationErrors.email}
@@ -241,12 +246,11 @@ const RegisterScreen: React.FC = () => {
               required
             />
 
-            {/* 密码输入框 */}
+            {/* Password input */}
             <AuthInput
-              label="密码"
               value={formData.password}
               onChangeText={(value) => updateFormData('password', value)}
-              placeholder="请输入密码"
+              placeholder="Password"
               leftIcon="🔒"
               error={validationErrors.password}
               hasError={!!validationErrors.password}
@@ -257,12 +261,11 @@ const RegisterScreen: React.FC = () => {
               required
             />
 
-            {/* 确认密码输入框 */}
+            {/* Confirm Password input */}
             <AuthInput
-              label="确认密码"
               value={formData.confirmPassword}
               onChangeText={(value) => updateFormData('confirmPassword', value)}
-              placeholder="请再次输入密码"
+              placeholder="Confirm Password"
               leftIcon="🔐"
               error={validationErrors.confirmPassword}
               hasError={!!validationErrors.confirmPassword}
@@ -274,7 +277,7 @@ const RegisterScreen: React.FC = () => {
               required
             />
 
-            {/* 用户协议 */}
+            {/* Terms agreement */}
             <TouchableOpacity
               style={styles.termsContainer}
               onPress={toggleAgreeToTerms}
@@ -284,52 +287,49 @@ const RegisterScreen: React.FC = () => {
                 {agreeToTerms && <Text style={styles.checkmark}>✓</Text>}
               </View>
               <Text style={styles.termsText}>
-                我已阅读并同意
-                <Text style={styles.termsLink}> 用户协议 </Text>
-                和
-                <Text style={styles.termsLink}> 隐私政策</Text>
+                I agree to the
+                <Text style={styles.termsLink}> Terms of Service </Text>
+                and
+                <Text style={styles.termsLink}> Privacy Policy</Text>
               </Text>
             </TouchableOpacity>
 
-            {/* 全局错误提示 */}
+            {/* Global error message */}
             {error ? (
               <View style={styles.errorContainer}>
                 <Text style={styles.globalErrorText}>{error}</Text>
               </View>
             ) : null}
 
-            {/* 注册按钮 */}
-            <TouchableOpacity
-              style={[styles.registerButton, loading && styles.registerButtonDisabled]}
+            {/* Register button */}
+            <GradientButton
+              title={loading ? "Creating..." : "Create Account"}
               onPress={handleRegister}
-              disabled={loading}
-            >
-              <Text style={styles.registerButtonText}>
-                {loading ? '注册中...' : '注册'}
-              </Text>
-            </TouchableOpacity>
+              disabled={loading || !agreeToTerms}
+              loading={loading}
+              gradientColors={[COLORS.login.buttonBackground, COLORS.login.buttonBackground]}
+              variant="primary"
+            />
 
-
-
-            {/* 登录链接 */}
-            <TouchableOpacity
-              style={styles.loginLinkContainer}
-              onPress={navigateToLogin}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.loginLinkText}>
-                已有账户？
-                <Text style={styles.loginLink}> 立即登录</Text>
-              </Text>
-            </TouchableOpacity>
+            {/* Login link section */}
+            <View style={styles.loginSection}>
+              <Text style={styles.loginPrompt}>Already a member?</Text>
+              <TouchableOpacity
+                onPress={navigateToLogin}
+                disabled={loading}
+              >
+                <Text style={styles.loginLink}>Sign in</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* 加载遮罩 */}
+      {/* Loading overlay */}
       <LoadingOverlay
         visible={loading}
-        message="正在注册..."
+        message="Creating account..."
       />
     </LinearGradient>
   </SafeAreaView>
@@ -352,143 +352,158 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.lg, // 增加垂直间距，更友好
-    minHeight: Math.max(Dimensions.get('window').height - 100, 650), // 适当增加最小高度
-  },
-  header: {
     alignItems: 'center',
-    marginBottom: SPACING.xl * 1.5, // 适中的底部间距
-    paddingTop: SPACING.lg, // 适中的顶部间距
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.xl,
+    minHeight: Math.max(Dimensions.get('window').height - 100, 650),
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    textAlign: 'center',
-    marginBottom: SPACING.md,
-    letterSpacing: 1,
-    // 现代化的文字阴影
+
+  // 极简居中布局容器
+  centerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    maxWidth: 400,
+  },
+
+  // 圆形用户图标容器
+  userIconContainer: {
+    marginBottom: SPACING.xl,
+  },
+
+  userIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.login.userIconBackground,
+    borderWidth: 3,
+    borderColor: COLORS.login.userIconBorder,
+    justifyContent: 'center',
+    alignItems: 'center',
+    // 图标阴影效果
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: 'rgba(255, 255, 255, 0.3)',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+
+  userIconText: {
+    fontSize: 32,
+    color: COLORS.login.userIconColor,
+  },
+
+  // 注册标题
+  registerTitle: {
+    fontSize: FONT_SIZES.xl + 2,
+    fontWeight: FONT_WEIGHTS.bold,
+    color: COLORS.login.titleText,
+    textAlign: 'center',
+    marginBottom: SPACING.xl * 1.5,
+    letterSpacing: 2,
+    // 文字阴影效果
+    ...Platform.select({
+      ios: {
+        shadowColor: COLORS.login.titleTextShadow,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
+        shadowOpacity: 1,
         shadowRadius: 4,
       },
       android: {
-        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowColor: COLORS.login.titleTextShadow,
         textShadowOffset: { width: 0, height: 2 },
         textShadowRadius: 4,
       },
     }),
   },
-  subtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
+
+  // 极简表单容器 - 无背景无边框
   formContainer: {
-    flex: 1,
-    paddingHorizontal: SPACING.xs, // 轻微的左右间距
-    justifyContent: 'space-between', // 均匀分布表单元素
+    width: '100%',
+    alignItems: 'center',
   },
+  // 用户协议区域
   termsContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    // marginTop: SPACING.xl, // 增加顶部间距，更友好
-    marginBottom: SPACING.xl, // 增加底部间距
-    paddingHorizontal: SPACING.sm, // 增加左右间距
+    marginBottom: SPACING.lg,
+    paddingHorizontal: SPACING.sm,
+    width: '100%',
   },
+
   checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: 'rgba(59, 130, 246, 0.5)',
+    width: 18,
+    height: 18,
+    borderRadius: 3,
+    borderWidth: 1.5,
+    borderColor: COLORS.login.checkboxBorder,
+    backgroundColor: COLORS.login.checkboxBackground,
     marginRight: SPACING.sm,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
+
   checkboxChecked: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: COLORS.login.checkboxBorder,
   },
+
   checkmark: {
-    color: '#ffffff',
+    color: COLORS.login.checkboxCheck,
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: FONT_WEIGHTS.bold,
   },
+
   termsText: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.login.secondaryText,
     lineHeight: 20,
     flex: 1,
   },
+
   termsLink: {
-    color: '#3b82f6',
-    fontWeight: '600',
-  },
-  errorContainer: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-    borderRadius: BORDER_RADIUS.sm,
-    padding: SPACING.md,
-    marginBottom: SPACING.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
-  },
-  globalErrorText: {
-    color: '#ef4444',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  registerButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: BORDER_RADIUS.lg, // 增加圆角
-    paddingVertical: SPACING.md + 4, // 增加垂直间距
-    alignItems: 'center',
-    // marginTop: SPACING.md, // 添加顶部间距
-    // marginBottom: SPACING.lg,
-    marginHorizontal: SPACING.xs, // 添加左右间距
-    // 更好的阴影效果
-    ...Platform.select({
-      ios: {
-        shadowColor: '#3b82f6',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  registerButtonDisabled: {
-    backgroundColor: 'rgba(59, 130, 246, 0.5)',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  registerButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    color: COLORS.login.linkText,
+    fontWeight: FONT_WEIGHTS.medium,
+    textDecorationLine: 'underline',
   },
 
-  loginLinkContainer: {
-    alignItems: 'center',
-    paddingVertical: SPACING.xl, // 增加上下间距，更友好
-    // marginTop: SPACING.lg, // 增加顶部间距
+  // 错误容器样式
+  errorContainer: {
+    marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.sm,
   },
-  loginLinkText: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+
+  globalErrorText: {
+    color: COLORS.login.errorText,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: FONT_WEIGHTS.medium,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  // 登录链接区域
+  loginSection: {
+    alignItems: 'center',
+    marginTop: SPACING.xl,
+  },
+
+  loginPrompt: {
+    color: COLORS.login.secondaryText,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: FONT_WEIGHTS.normal,
+    marginBottom: SPACING.sm,
   },
   loginLink: {
-    color: '#3b82f6',
-    fontWeight: '600',
+    color: COLORS.login.linkText,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: FONT_WEIGHTS.medium,
+    textDecorationLine: 'underline',
   },
 });
 

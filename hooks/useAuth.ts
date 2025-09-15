@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, createContext } from 'react';
 import { Alert } from 'react-native';
 import { HttpClient } from '../utils/HttpClient';
 import { LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, UserInfo, HttpError } from '../types/http';
@@ -57,27 +57,79 @@ export const useAuth = (): UseAuthReturn => {
   // 防护标志，避免重复的认证检查
   const isCheckingAuth = useRef(false);
 
+  // 强制重新渲染计数器 - 用于调试状态更新问题
+  const [forceRenderCount, setForceRenderCount] = useState(0);
+
   /**
-   * 更新认证状态
+   * 更新认证状态 - 深度调试版本，跟踪状态更新和组件重新渲染
    */
   const updateAuthState = useCallback((updates: Partial<AuthState>) => {
     console.log('🔄 开始更新认证状态:', {
       timestamp: new Date().toISOString(),
-      updates
+      updates,
+      updateKeys: Object.keys(updates),
+      stackTrace: new Error().stack?.split('\n').slice(1, 4) // 显示调用栈
     });
 
     setAuthState(prev => {
       const newState = { ...prev, ...updates };
       const stateChanged = JSON.stringify(prev) !== JSON.stringify(newState);
+
       console.log('✅ 认证状态更新完成:', {
         timestamp: new Date().toISOString(),
         stateChanged,
-        newAuth: newState.isAuthenticated,
-        newLoading: newState.loading
+        previousState: {
+          isAuthenticated: prev.isAuthenticated,
+          loading: prev.loading,
+          hasUser: !!prev.user,
+          userId: prev.user?.id
+        },
+        newState: {
+          isAuthenticated: newState.isAuthenticated,
+          loading: newState.loading,
+          hasUser: !!newState.user,
+          userId: newState.user?.id
+        }
       });
+
+      // 如果是登录成功的状态更新，添加额外的验证日志
+      if (!prev.isAuthenticated && newState.isAuthenticated && newState.user) {
+        console.log('🎉 登录状态更新成功 - 应该触发AuthNavigator重新渲染:', {
+          timestamp: new Date().toISOString(),
+          userId: newState.user.id,
+          username: newState.user.username,
+          isAuthenticated: newState.isAuthenticated,
+          loading: newState.loading,
+          expectedNavigation: 'AuthNavigator应该显示MainNavigator'
+        });
+      }
+
+      // 如果是登出状态更新
+      if (prev.isAuthenticated && !newState.isAuthenticated) {
+        console.log('🚪 登出状态更新成功 - 应该触发AuthNavigator重新渲染:', {
+          timestamp: new Date().toISOString(),
+          previousUser: prev.user?.username,
+          isAuthenticated: newState.isAuthenticated,
+          loading: newState.loading,
+          expectedNavigation: 'AuthNavigator应该显示AuthNavigator'
+        });
+      }
+
       return newState;
     });
-  }, []); // 移除authState依赖，避免无限循环
+
+    // 强制触发组件重新渲染 - 用于调试
+    setForceRenderCount(prev => prev + 1);
+
+    // 使用setTimeout确保状态更新后的日志
+    setTimeout(() => {
+      console.log('⏰ 状态更新后验证 (异步):', {
+        timestamp: new Date().toISOString(),
+        message: '如果AuthNavigator没有重新渲染，说明存在问题',
+        forceRenderCount: forceRenderCount + 1
+      });
+    }, 0);
+  }, [forceRenderCount]); // 添加forceRenderCount依赖
 
   /**
    * 设置加载状态
@@ -161,28 +213,24 @@ export const useAuth = (): UseAuthReturn => {
         await HttpClient.setToken(accessToken);
         console.log('✅ Token存储成功');
 
-        // 更新认证状态
-        console.log('🔄 开始更新认证状态...');
+        // 直接更新认证状态，不使用复杂的Promise包装
+        console.log('🔄 更新认证状态...');
         updateAuthState({
           isAuthenticated: true,
           user,
           loading: false,
           error: null,
         });
-        console.log('✅ 认证状态更新成功', { isAuthenticated: true, userId: user.id });
 
-        // 添加状态更新验证机制
-        setTimeout(() => {
-          console.log('🔍 验证状态更新结果:', {
-            timestamp: new Date().toISOString(),
-            expectedAuth: true,
-            expectedUser: user.id,
-            message: '如果此日志后没有看到主页面，说明状态更新可能存在问题'
-          });
-        }, 50);
+        console.log('🎉 登录流程完成:', {
+          userId: user.id,
+          username: user.username,
+          timestamp: new Date().toISOString()
+        });
 
-        console.log('🎉 登录流程完成:', { userId: user.id, username: user.username });
-        Toast.success(`欢迎回来，${user.username}！`); // 修复：移除第二个参数，使用默认duration
+        // 显示成功提示
+        Toast.success(`欢迎回来，${user.username}！`);
+
         return true;
       } else {
         throw new Error('登录响应数据无效');
@@ -287,24 +335,43 @@ export const useAuth = (): UseAuthReturn => {
   }, [updateAuthState, clearError, handleHttpError]);
 
   /**
-   * 登出方法
+   * 登出方法 - 完整的退出登录功能实现
    */
   const logout = useCallback(async (): Promise<void> => {
     try {
+      console.log('🚪 开始登出流程:', {
+        timestamp: new Date().toISOString(),
+        currentUser: authState.user?.username,
+        userId: authState.user?.id
+      });
+
       setLoading(true);
 
-      // 调用后端登出接口（可选）
+      // 第一步：调用后端登出接口
       try {
-        await HttpClient.post('auth/logout');
+        console.log('🌐 调用后端登出接口...');
+        const response = await HttpClient.post('auth/logout', {}, {
+          withAuth: true, // 需要携带token进行认证
+        });
+
+        if (response.success) {
+          console.log('✅ 后端登出接口调用成功');
+        } else {
+          console.warn('⚠️ 后端登出接口返回失败状态，但继续本地登出流程');
+        }
       } catch (error) {
-        console.warn('后端登出请求失败:', error);
+        console.warn('❌ 后端登出请求失败:', error);
+        console.log('📋 继续执行本地登出流程，确保用户能够成功退出');
         // 即使后端登出失败，也继续本地登出流程
       }
 
-      // 清除本地token
+      // 第二步：清除本地存储的所有认证相关数据
+      console.log('🧽 清除本地认证数据...');
       await HttpClient.clearToken();
+      console.log('✅ 本地token已清除');
 
-      // 重置认证状态
+      // 第三步：重置应用的认证状态
+      console.log('🔄 重置认证状态...');
       updateAuthState({
         isAuthenticated: false,
         user: null,
@@ -312,20 +379,42 @@ export const useAuth = (): UseAuthReturn => {
         error: null,
       });
 
-      console.log('登出成功');
+      console.log('🎉 登出流程完成:', {
+        timestamp: new Date().toISOString(),
+        message: '用户已成功退出，AuthNavigator将自动跳转到登录界面'
+      });
+
+      // 显示成功提示
+      Toast.success('已成功退出登录');
+
     } catch (error) {
-      console.error('登出过程中发生错误:', error);
-      
-      // 即使发生错误，也要清除本地状态
-      await HttpClient.clearToken();
-      updateAuthState({
-        isAuthenticated: false,
-        user: null,
-        loading: false,
-        error: null,
-      });
+      console.error('❌ 登出过程中发生意外错误:', error);
+
+      // 即使发生错误，也要确保本地状态被清除
+      console.log('🛡️ 执行兜底清理逻辑...');
+      try {
+        await HttpClient.clearToken();
+        updateAuthState({
+          isAuthenticated: false,
+          user: null,
+          loading: false,
+          error: null,
+        });
+        console.log('✅ 兜底清理完成，用户状态已重置');
+        Toast.success('已退出登录');
+      } catch (cleanupError) {
+        console.error('❌ 兜底清理也失败:', cleanupError);
+        // 强制重置状态，确保用户能够退出
+        updateAuthState({
+          isAuthenticated: false,
+          user: null,
+          loading: false,
+          error: null,
+        });
+        Toast.warning('退出登录完成，如有问题请重启应用');
+      }
     }
-  }, [updateAuthState]);
+  }, [updateAuthState, setLoading, authState.user]);
 
   /**
    * 刷新用户信息
@@ -368,12 +457,24 @@ export const useAuth = (): UseAuthReturn => {
   }, [updateAuthState, clearError, handleHttpError, logout]);
 
   /**
-   * 检查认证状态 - 添加防护机制避免重复调用
+   * 检查认证状态 - 添加防护机制避免重复调用和登录后的意外重置
    */
   const checkAuthStatus = useCallback(async (): Promise<void> => {
     // 防护机制：如果已经在检查中，直接返回
     if (isCheckingAuth.current) {
       console.log('⚠️ 认证状态检查已在进行中，跳过重复调用');
+      return;
+    }
+
+    // 强化防护：如果用户已经认证且不在加载状态，跳过检查避免状态重置
+    if (authState.isAuthenticated && authState.user && !authState.loading) {
+      console.log('✅ 用户已认证且状态稳定，跳过状态检查:', {
+        userId: authState.user.id,
+        username: authState.user.username,
+        isAuthenticated: authState.isAuthenticated,
+        loading: authState.loading,
+        timestamp: new Date().toISOString()
+      });
       return;
     }
 
@@ -399,9 +500,25 @@ export const useAuth = (): UseAuthReturn => {
       }
 
       console.log('✅ 找到本地token，开始验证token有效性...');
-      // 有token，尝试获取用户信息验证token有效性
-      await refreshUser();
-      console.log('✅ Token验证成功，用户已认证');
+      // 直接调用API验证token，避免使用refreshUser（它可能触发logout）
+      try {
+        const response = await HttpClient.get<UserInfo>('auth/profile');
+
+        if (response.success && response.data) {
+          console.log('✅ Token验证成功，更新认证状态');
+          updateAuthState({
+            isAuthenticated: true,
+            user: response.data,
+            loading: false,
+            error: null,
+          });
+        } else {
+          throw new Error('Token验证失败');
+        }
+      } catch (tokenError) {
+        console.log('❌ Token验证失败，清除无效token');
+        throw tokenError; // 重新抛出错误，让外层catch处理
+      }
     } catch (error) {
       console.error('❌ 检查认证状态失败:', error);
 
@@ -420,16 +537,48 @@ export const useAuth = (): UseAuthReturn => {
       isCheckingAuth.current = false;
       console.log('🔓 认证检查完成，重置防护标志');
     }
-  }, [updateAuthState, refreshUser]);
+  }, [updateAuthState, refreshUser, authState.isAuthenticated, authState.user]);
 
   /**
-   * 组件挂载时检查认证状态 - 只执行一次
+   * 组件挂载时检查认证状态 - 只在真正需要时执行
    */
   useEffect(() => {
-    checkAuthStatus();
+    console.log('🚀 useAuth Hook初始化，检查是否需要验证认证状态');
+
+    // 只有在初始状态（loading=true且未认证）时才检查认证状态
+    if (authState.loading && !authState.isAuthenticated && !authState.user) {
+      console.log('📋 执行初始认证状态检查');
+      checkAuthStatus();
+    } else {
+      console.log('⏭️ 跳过认证状态检查，当前状态:', {
+        loading: authState.loading,
+        isAuthenticated: authState.isAuthenticated,
+        hasUser: !!authState.user
+      });
+      // 如果不是初始状态，直接设置loading为false
+      if (authState.loading) {
+        updateAuthState({ loading: false });
+      }
+    }
   }, []); // 空依赖数组，只在组件挂载时执行一次
 
-  return {
+  /**
+   * 监听认证状态变化，用于调试
+   */
+  useEffect(() => {
+    console.log('🔍 useAuth状态变化监听:', {
+      timestamp: new Date().toISOString(),
+      isAuthenticated: authState.isAuthenticated,
+      hasUser: !!authState.user,
+      userId: authState.user?.id,
+      username: authState.user?.username,
+      loading: authState.loading,
+      hasError: !!authState.error
+    });
+  }, [authState.isAuthenticated, authState.user, authState.loading, authState.error]);
+
+  // 创建返回对象并添加调试信息
+  const returnValue = {
     // 状态
     isAuthenticated: authState.isAuthenticated,
     user: authState.user,
@@ -443,5 +592,27 @@ export const useAuth = (): UseAuthReturn => {
     refreshUser,
     clearError,
     checkAuthStatus,
+
+    // 调试用的强制渲染计数器
+    _forceRenderCount: forceRenderCount,
   };
+
+  // 调试：记录useAuth返回的状态
+  console.log('📤 useAuth返回状态:', {
+    timestamp: new Date().toISOString(),
+    isAuthenticated: returnValue.isAuthenticated,
+    loading: returnValue.loading,
+    hasUser: !!returnValue.user,
+    userId: returnValue.user?.id,
+    username: returnValue.user?.username,
+    hasError: !!returnValue.error,
+    forceRenderCount: returnValue._forceRenderCount
+  });
+
+  return returnValue;
 };
+
+/**
+ * 认证上下文 - 确保全局状态共享
+ */
+export const AuthContext = createContext<UseAuthReturn | null>(null);

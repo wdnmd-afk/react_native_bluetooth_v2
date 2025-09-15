@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthContext } from './AuthProvider';
 import { COLORS, SPACING } from '../lib/constants';
 
 // 导入页面组件
@@ -192,74 +192,82 @@ const LoadingScreen: React.FC = () => {
 /**
  * 根认证导航组件
  * 根据用户认证状态决定显示认证页面还是主应用页面
+ * 深度调试版本 - 跟踪每次渲染和状态变化
  */
 const RootAuthNavigator: React.FC = () => {
-  const { isAuthenticated, loading, user } = useAuth();
-  const [navigationState, setNavigationState] = React.useState<'loading' | 'auth' | 'main'>('loading');
-  const [stateHistory, setStateHistory] = React.useState<Array<{
-    timestamp: string;
-    isAuthenticated: boolean;
-    loading: boolean;
-    hasUser: boolean;
-    navigationState: string;
-  }>>([]);
+  const authData = useAuthContext();
+  const { isAuthenticated, loading, user } = authData;
 
-  // 监听认证状态变化，记录详细的状态转换历史
+  // 使用ref跟踪渲染次数
+  const renderCountRef = React.useRef(0);
+  renderCountRef.current += 1;
+
+  // 详细的渲染日志
+  console.log(`� AuthNavigator渲染 #${renderCountRef.current}:`, {
+    timestamp: new Date().toISOString(),
+    isAuthenticated,
+    loading,
+    hasUser: !!user,
+    userId: user?.id,
+    username: user?.username,
+    authDataKeys: Object.keys(authData),
+    decision: loading ? 'LOADING' : (isAuthenticated && user) ? 'MAIN_APP' : 'AUTH_PAGES'
+  });
+
+  // 监听状态变化
   React.useEffect(() => {
-    const timestamp = new Date().toISOString();
-    const newNavigationState = loading ? 'loading' : (isAuthenticated && user) ? 'main' : 'auth';
+    console.log('� AuthNavigator状态变化监听:', {
+      renderCount: renderCountRef.current,
+      timestamp: new Date().toISOString(),
+      isAuthenticated,
+      loading,
+      hasUser: !!user,
+      userId: user?.id,
+      username: user?.username,
+      stateChangeType: 'useEffect触发'
+    });
+  }, [isAuthenticated, loading, user]);
 
-    // 只在状态真正改变时更新
-    if (newNavigationState !== navigationState) {
-      console.log('🔍 AuthNavigator状态变化:', {
-        timestamp,
-        isAuthenticated,
-        loading,
-        hasUser: !!user,
-        userId: user?.id,
-        username: user?.username,
-        previousState: navigationState,
-        newState: newNavigationState,
-      });
+  // 组件挂载和卸载日志
+  React.useEffect(() => {
+    console.log('🚀 AuthNavigator组件挂载');
+    return () => {
+      console.log('💀 AuthNavigator组件卸载');
+    };
+  }, []);
 
-      setNavigationState(newNavigationState as any);
-
-      // 记录状态变化历史
-      const currentState = {
-        timestamp,
-        isAuthenticated,
-        loading,
-        hasUser: !!user,
-        navigationState: newNavigationState
-      };
-      setStateHistory(prev => [...prev.slice(-4), currentState]);
-    }
-  }, [isAuthenticated, loading, user]); // 移除navigationState依赖，避免循环
-
-  // 显示加载状态
-  if (loading || navigationState === 'loading') {
-    console.log('⏳ 显示加载页面 - 正在检查认证状态');
+  // 渲染决策逻辑 - 添加详细日志
+  if (loading) {
+    console.log('⏳ 渲染决策: 显示加载页面', {
+      reason: 'loading=true',
+      loading,
+      isAuthenticated,
+      hasUser: !!user
+    });
     return <LoadingScreen />;
   }
 
-  // 根据认证状态返回对应的导航组件
-  if ((isAuthenticated && user) || navigationState === 'main') {
-    console.log('✅ 用户已认证，显示主应用页面:', {
-      userId: user?.id,
-      username: user?.username,
-      navigationState,
+  if (isAuthenticated && user) {
+    console.log('✅ 渲染决策: 显示主应用页面', {
+      reason: 'isAuthenticated=true AND user存在',
+      isAuthenticated,
+      userId: user.id,
+      username: user.username,
+      loading,
       timestamp: new Date().toISOString()
     });
     return <MainNavigator />;
-  } else {
-    console.log('❌ 用户未认证，显示认证页面:', {
-      isAuthenticated,
-      hasUser: !!user,
-      navigationState,
-      timestamp: new Date().toISOString()
-    });
-    return <AuthNavigator />;
   }
+
+  // 默认显示认证页面
+  console.log('❌ 渲染决策: 显示认证页面', {
+    reason: 'isAuthenticated=false OR user不存在',
+    isAuthenticated,
+    hasUser: !!user,
+    loading,
+    timestamp: new Date().toISOString()
+  });
+  return <AuthNavigator />;
 };
 
 const styles = StyleSheet.create({

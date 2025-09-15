@@ -63,6 +63,22 @@ const AuthInput: React.FC<AuthInputProps> = ({
   // 动画值
   const borderColorAnim = useRef(new Animated.Value(0)).current;
   const labelPositionAnim = useRef(new Animated.Value(0)).current;
+
+  // 获取简洁图标 - 将emoji图标转换为更简洁的符号
+  const getSimpleIcon = (icon: string) => {
+    switch (icon) {
+      case '👤':
+        return '👤'; // 用户图标保持，但会在样式中优化显示
+      case '🔒':
+        return '🔒'; // 锁定图标保持，但会在样式中优化显示
+      case '📧':
+        return '@'; // 邮箱图标使用@符号
+      case '📱':
+        return '📱'; // 手机图标保持
+      default:
+        return icon;
+    }
+  };
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
   /**
@@ -158,10 +174,14 @@ const AuthInput: React.FC<AuthInputProps> = ({
     borderColorAnim.setValue(targetValue);
   }, [hasError, isFocused]); // 移除动画值依赖
 
-  // 动画插值
+  // 动画插值 - 使用白色主题的边框颜色
   const borderColor = borderColorAnim.interpolate({
     inputRange: [0, 1, 2],
-    outputRange: [COLORS.border, COLORS.borderFocus, COLORS.error],
+    outputRange: [
+      COLORS.login?.inputBorder || '#FFFFFF', // 默认状态：白色边框
+      COLORS.login?.inputBorderFocus || '#FFFFFF', // 聚焦状态：白色边框
+      COLORS.login?.errorBorder || '#FFFFFF', // 错误状态：白色边框
+    ],
   });
 
   const labelTop = labelPositionAnim.interpolate({
@@ -214,13 +234,16 @@ const AuthInput: React.FC<AuthInputProps> = ({
           {
             borderColor: borderColor,
           },
+          isFocused && styles.inputContainerFocus,
           hasError && styles.inputContainerError,
         ]}
       >
-        {/* 左侧图标 */}
+        {/* 左侧圆形图标容器 - 与输入区域缝合设计 */}
         {leftIcon && (
           <View style={styles.leftIconContainer}>
-            <Text style={styles.iconText}>{leftIcon}</Text>
+            <View style={styles.iconCircle}>
+              <Text style={styles.iconText}>{getSimpleIcon(leftIcon)}</Text>
+            </View>
           </View>
         )}
 
@@ -236,8 +259,33 @@ const AuthInput: React.FC<AuthInputProps> = ({
           secureTextEntry={isPassword && !showPassword}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          placeholderTextColor="rgba(255, 255, 255, 0.5)"
-          selectionColor="#3b82f6"
+          placeholderTextColor={COLORS.login?.inputPlaceholder || 'rgba(255, 255, 255, 0.7)'}
+          selectionColor={COLORS.login?.inputText || '#FFFFFF'} // 白色光标
+          cursorColor={COLORS.login?.inputText || '#FFFFFF'} // 白色光标（新版本RN）
+          underlineColorAndroid="transparent" // 移除Android默认下划线
+          textAlignVertical="center" // 垂直居中对齐
+          multiline={false} // 确保单行输入
+          numberOfLines={1} // 限制为单行
+          blurOnSubmit={true} // 提交时失去焦点
+          // 额外的样式控制属性 - 完全移除所有可能的默认样式
+          autoComplete="off" // 关闭自动完成
+          autoCorrect={false} // 关闭自动纠错
+          spellCheck={false} // 关闭拼写检查
+          textContentType="none" // iOS: 移除内容类型提示
+          importantForAutofill="no" // Android: 关闭自动填充
+          disableFullscreenUI={true} // Android: 禁用全屏UI
+          // Platform特定的样式控制
+          {...Platform.select({
+            android: {
+              underlineColorAndroid: 'transparent',
+              selectionColor: COLORS.login?.inputText || '#FFFFFF',
+              textAlignVertical: 'center',
+            },
+            ios: {
+              clearButtonMode: 'never', // iOS: 移除清除按钮
+              enablesReturnKeyAutomatically: false,
+            },
+          })}
         />
 
         {/* 右侧图标或密码切换按钮 */}
@@ -299,32 +347,65 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceAlpha,
-    borderRadius: BORDER_RADIUS.lg,
+    // 圆弧形白色边框设计 - 半透明白色背景
+    backgroundColor: COLORS.login?.inputBackground || 'rgba(255, 255, 255, 0.1)',
+    borderRadius: BORDER_RADIUS.xxl, // 高圆角设计 (28px)
     borderWidth: 2,
+    borderColor: COLORS.login?.inputBorder || '#FFFFFF',
     minHeight: 56,
-    paddingHorizontal: SPACING.md,
-    // 现代化的阴影效果
+    paddingHorizontal: 0, // 移除水平内边距，让左侧图标容器贴边
+    marginBottom: SPACING.lg,
+    width: '100%',
+    overflow: 'hidden', // 确保圆形图标容器不会超出边界
+    // 轻微白色阴影效果
     ...Platform.select({
       ios: {
-        shadowColor: COLORS.primary,
+        shadowColor: 'rgba(255, 255, 255, 0.3)',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
+        shadowOpacity: 1,
+        shadowRadius: 6,
       },
       android: {
         elevation: 3,
       },
     }),
   },
+  inputContainerFocus: {
+    backgroundColor: COLORS.login?.inputBackgroundFocus || 'rgba(255, 255, 255, 0.15)',
+    borderColor: COLORS.login?.inputBorderFocus || '#FFFFFF',
+    // 聚焦时的白色阴影增强
+    ...Platform.select({
+      ios: {
+        shadowColor: 'rgba(255, 255, 255, 0.5)',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 1,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+
   inputContainerError: {
-    backgroundColor: COLORS.errorAlpha,
+    backgroundColor: COLORS.login?.errorBackground || 'rgba(255, 255, 255, 0.1)',
+    borderColor: COLORS.login?.errorBorder || '#FFFFFF',
   },
   leftIconContainer: {
-    paddingLeft: SPACING.md,
-    paddingRight: SPACING.sm,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingLeft: 4, // 左侧小间距，让圆形图标贴近边框
+  },
+
+  // 圆形图标容器 - 与输入框缝合设计
+  iconCircle: {
+    width: 48, // 圆形图标容器宽度
+    height: 48, // 圆形图标容器高度
+    borderRadius: 24, // 完美圆形
+    backgroundColor: 'rgba(255, 255, 255, 0.2)', // 半透明白色背景
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.md, // 与输入文字区域的间距
   },
   rightIconContainer: {
     paddingRight: SPACING.md,
@@ -335,20 +416,46 @@ const styles = StyleSheet.create({
     minHeight: 40,
   },
   iconText: {
-    fontSize: 18,
-    color: COLORS.textSecondary,
+    fontSize: 20, // 稍微增大图标尺寸
+    color: COLORS.login?.inputText || '#FFFFFF', // 白色图标
+    fontWeight: '400',
   },
   textInput: {
     flex: 1,
     fontSize: 16,
-    color: COLORS.text,
-    paddingHorizontal: SPACING.sm,
+    color: COLORS.login?.inputText || '#FFFFFF', // 白色文本
+    paddingHorizontal: SPACING.md, // 右侧内边距
     paddingVertical: SPACING.md,
     fontWeight: '400',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
+    // 强制移除所有可能的默认样式和边框
+    borderWidth: 0,
+    borderTopWidth: 0,
+    borderBottomWidth: 0,
+    borderLeftWidth: 0,
+    borderRightWidth: 0,
+    borderColor: 'transparent',
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    backgroundColor: 'transparent',
+    textDecorationLine: 'none',
+    // 移除任何可能的阴影（仅适用于React Native的有效属性）
+    ...Platform.select({
+      ios: {
+        shadowColor: 'transparent',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0,
+        shadowRadius: 0,
+      },
+      android: {
+        elevation: 0,
+      },
+    }),
   },
   textInputWithLeftIcon: {
-    paddingLeft: 0,
+    paddingLeft: 0, // 左侧无内边距，因为已经有图标容器的间距
   },
   textInputWithRightIcon: {
     paddingRight: 0,

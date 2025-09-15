@@ -10,40 +10,14 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthContext } from '../components/AuthProvider';
+import LogoutButton from '../components/LogoutButton';
 
 const ProfileScreen: React.FC = () => {
   // 获取认证状态和用户信息
-  const { user, logout, loading } = useAuth();
+  const { user, logout, loading } = useAuthContext();
 
-  /**
-   * 处理退出登录
-   */
-  const handleLogout = useCallback(() => {
-    Alert.alert(
-      '退出登录',
-      '确定要退出登录吗？',
-      [
-        {
-          text: '取消',
-          style: 'cancel',
-        },
-        {
-          text: '确定',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await logout();
-              // 登出成功后，认证路由守卫会自动跳转到登录页面
-            } catch (error) {
-              console.error('登出失败:', error);
-              Alert.alert('错误', '登出失败，请重试');
-            }
-          },
-        },
-      ]
-    );
-  }, [logout]);
+  // 移除原有的handleLogout方法，使用LogoutButton组件内置的处理逻辑
 
   const menuItems = [
     { id: 1, title: '设备管理', subtitle: '管理已连接的蓝牙设备', icon: '📱' },
@@ -51,7 +25,7 @@ const ProfileScreen: React.FC = () => {
     { id: 3, title: '应用设置', subtitle: '个性化设置选项', icon: '⚙️' },
     { id: 4, title: '帮助中心', subtitle: '使用指南和常见问题', icon: '❓' },
     { id: 5, title: '关于我们', subtitle: '应用信息和版本', icon: 'ℹ️' },
-    { id: 6, title: '退出登录', subtitle: '安全退出当前账户', icon: '🚪', action: handleLogout, isLogout: true },
+    { id: 6, title: '退出登录', subtitle: '安全退出当前账户', icon: '🚪', isLogout: true },
   ];
 
   return (
@@ -102,43 +76,71 @@ const ProfileScreen: React.FC = () => {
 
         {/* 菜单列表 */}
         <View style={styles.menuSection}>
-          {menuItems.map((item, index) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[
-                styles.menuItem,
-                index === 0 && styles.firstMenuItem,
-                index === menuItems.length - 1 && styles.lastMenuItem,
-                (item as any).isLogout && styles.logoutMenuItem,
-              ]}
-              activeOpacity={0.7}
-              onPress={(item as any).action || (() => console.log(`点击了${item.title}`))}
-              disabled={loading}
-            >
-              <View style={styles.menuIcon}>
-                <Text style={[
-                  styles.menuIconText,
-                  (item as any).isLogout && styles.logoutIcon
-                ]}>{item.icon}</Text>
-              </View>
-              <View style={styles.menuContent}>
-                <Text style={[
-                  styles.menuTitle,
-                  (item as any).isLogout && styles.logoutTitle
-                ]}>{item.title}</Text>
-                <Text style={[
-                  styles.menuSubtitle,
-                  (item as any).isLogout && styles.logoutSubtitle
-                ]}>{item.subtitle}</Text>
-              </View>
-              <View style={styles.menuArrow}>
-                <Text style={[
-                  styles.arrowText,
-                  (item as any).isLogout && styles.logoutArrow
-                ]}>›</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+          {menuItems.map((item, index) => {
+            // 如果是退出登录项，使用LogoutButton组件
+            if ((item as any).isLogout) {
+              return (
+                <View
+                  key={item.id}
+                  style={[
+                    styles.menuItem,
+                    index === 0 && styles.firstMenuItem,
+                    index === menuItems.length - 1 && styles.lastMenuItem,
+                    styles.logoutMenuItem,
+                  ]}
+                >
+                  <View style={styles.menuIcon}>
+                    <Text style={[styles.menuIconText, styles.logoutIcon]}>
+                      {item.icon}
+                    </Text>
+                  </View>
+                  <View style={styles.menuContent}>
+                    <Text style={[styles.menuTitle, styles.logoutTitle]}>
+                      {item.title}
+                    </Text>
+                    <Text style={[styles.menuSubtitle, styles.logoutSubtitle]}>
+                      {item.subtitle}
+                    </Text>
+                  </View>
+                  <View style={styles.logoutButtonContainer}>
+                    <LogoutButton
+                      title="退出"
+                      variant="danger"
+                      showConfirmDialog={true}
+                      style={styles.logoutButton}
+                      textStyle={styles.logoutButtonText}
+                    />
+                  </View>
+                </View>
+              );
+            }
+
+            // 普通菜单项
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.menuItem,
+                  index === 0 && styles.firstMenuItem,
+                  index === menuItems.length - 1 && styles.lastMenuItem,
+                ]}
+                activeOpacity={0.7}
+                onPress={() => console.log(`点击了${item.title}`)}
+                disabled={loading}
+              >
+                <View style={styles.menuIcon}>
+                  <Text style={styles.menuIconText}>{item.icon}</Text>
+                </View>
+                <View style={styles.menuContent}>
+                  <Text style={styles.menuTitle}>{item.title}</Text>
+                  <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                </View>
+                <View style={styles.menuArrow}>
+                  <Text style={styles.arrowText}>›</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* 底部间距 */}
@@ -347,6 +349,20 @@ const styles = StyleSheet.create({
   },
   logoutArrow: {
     color: '#ef4444',
+  },
+  // LogoutButton组件相关样式
+  logoutButtonContainer: {
+    paddingLeft: 12,
+  },
+  logoutButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    minHeight: 36,
+    borderRadius: 8,
+  },
+  logoutButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   bottomSpacing: {
     height: 100,
