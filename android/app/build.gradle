@@ -32,6 +32,9 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+
+        // VisionCamera配置 - 禁用自动设备监听以避免初始化时序问题
+        buildConfigField "boolean", "VISION_CAMERA_DISABLE_DEVICE_LISTENER", "true"
     }
 
     signingConfigs {

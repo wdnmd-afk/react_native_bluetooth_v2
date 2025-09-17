@@ -15,6 +15,8 @@ import DeviceManagementScreen from '../app/device-management';
 import PrinterSettingsScreen from '../app/printer-settings';
 import DataAnalyticsScreen from '../app/data-analytics';
 import PrinterDetailsScreen from '../app/printer-details';
+import LiveStreamingScreen from '../app/live-streaming';
+
 
 // 导入类型定义
 import { AuthStackParamList, MainStackParamList } from '../types/navigation';
@@ -44,16 +46,16 @@ const AuthNavigator: React.FC = () => {
       }}
       initialRouteName="Login"
     >
-      <AuthStack.Screen 
-        name="Login" 
+      <AuthStack.Screen
+        name="Login"
         component={LoginScreen}
         options={{
           title: '登录',
           animationTypeForReplace: 'push',
         }}
       />
-      <AuthStack.Screen 
-        name="Register" 
+      <AuthStack.Screen
+        name="Register"
         component={RegisterScreen}
         options={{
           title: '注册',
@@ -170,6 +172,24 @@ const MainNavigator: React.FC = () => {
           },
         }}
       />
+
+      {/* 实时视频监控页面 */}
+      <MainStack.Screen
+        name="LiveStreaming"
+        component={LiveStreamingScreen}
+        options={{
+          title: '实时监控',
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#dc2626',
+          },
+          headerTintColor: '#ffffff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+
     </MainStack.Navigator>
   );
 };

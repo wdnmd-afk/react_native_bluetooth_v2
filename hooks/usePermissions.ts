@@ -1,16 +1,21 @@
-import {useState, useEffect, useCallback} from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
-import {PermissionsAndroid, Platform, Alert, Linking} from 'react-native';
+import { PermissionsAndroid, Platform, Alert, Linking } from 'react-native';
+import { PermissionManager, PermissionType } from '../utils/permissions';
 
 export interface PermissionState {
   hasLocationPermission: boolean;
   hasBluetoothPermission: boolean;
+  hasCameraPermission: boolean;
+  hasMicrophonePermission: boolean;
   isCheckingPermissions: boolean;
 }
 
 export const usePermissions = () => {
   const [hasLocationPermission, setHasLocationPermission] = useState(false);
   const [hasBluetoothPermission, setHasBluetoothPermission] = useState(false);
+  const [hasCameraPermission, setHasCameraPermission] = useState(false);
+  const [hasMicrophonePermission, setHasMicrophonePermission] = useState(false);
   const [isCheckingPermissions, setIsCheckingPermissions] = useState(false);
 
   // 请求定位权限
@@ -44,8 +49,8 @@ export const usePermissions = () => {
             '权限被拒绝',
             '没有定位权限将无法搜索蓝牙设备，请重新授权或在设置中手动开启权限',
             [
-              {text: '取消', style: 'cancel'},
-              {text: '去设置', onPress: openAppSettings},
+              { text: '取消', style: 'cancel' },
+              { text: '去设置', onPress: openAppSettings },
             ],
           );
         }
@@ -87,8 +92,8 @@ export const usePermissions = () => {
             '蓝牙权限被拒绝',
             '没有蓝牙权限将无法使用蓝牙功能，请在设置中手动开启权限',
             [
-              {text: '取消', style: 'cancel'},
-              {text: '去设置', onPress: openAppSettings},
+              { text: '取消', style: 'cancel' },
+              { text: '去设置', onPress: openAppSettings },
             ],
           );
         }
@@ -157,15 +162,51 @@ export const usePermissions = () => {
     }
   }, []);
 
+  // 请求摄像头权限
+  const requestCameraPermission = async (): Promise<boolean> => {
+    console.log('通过Hook请求摄像头权限');
+    const granted = await PermissionManager.requestCameraPermission();
+    setHasCameraPermission(granted);
+    return granted;
+  };
+
+  // 请求麦克风权限
+  const requestMicrophonePermission = async (): Promise<boolean> => {
+    console.log('通过Hook请求麦克风权限');
+    const granted = await PermissionManager.requestMicrophonePermission();
+    setHasMicrophonePermission(granted);
+    return granted;
+  };
+
+  // 请求实时直播所需的所有权限
+  const requestLiveStreamingPermissions = async (): Promise<boolean> => {
+    console.log('通过Hook请求实时直播权限');
+    const granted = await PermissionManager.ensureLiveStreamingPermissions();
+
+    // 更新状态
+    const cameraStatus = await PermissionManager.checkPermissionStatus(PermissionType.CAMERA);
+    const microphoneStatus = await PermissionManager.checkPermissionStatus(PermissionType.MICROPHONE);
+
+    setHasCameraPermission(cameraStatus);
+    setHasMicrophonePermission(microphoneStatus);
+
+    return granted;
+  };
+
   return {
     // 状态
     hasLocationPermission,
     hasBluetoothPermission,
+    hasCameraPermission,
+    hasMicrophonePermission,
     isCheckingPermissions,
 
     // 方法
     requestLocationPermission,
     requestBluetoothPermission,
+    requestCameraPermission,
+    requestMicrophonePermission,
+    requestLiveStreamingPermissions,
     checkPermissions,
     openAppSettings,
   };

@@ -13,6 +13,8 @@ export type MainStackParamList = {
   PrinterSettings: { deviceId?: string }; // 打印机设置页面，可选设备ID参数
   DataAnalytics: undefined;       // 数据分析页面，无需传递参数
   PrinterDetails: { deviceId: string; deviceName: string }; // 打印机详情页面，必需设备信息
+  LiveStreaming: undefined;       // 实时监控页面，无需传递参数
+
 };
 
 // 根导航的路由参数类型定义（兼容性保持）

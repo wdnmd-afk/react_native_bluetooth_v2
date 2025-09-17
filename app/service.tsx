@@ -25,6 +25,8 @@ const ServiceScreen: React.FC = () => {
     { id: 6, title: '设备管理', description: '管理所有蓝牙打印设备', status: '可用', isNew: true },
     { id: 7, title: '数据分析', description: '查看打印统计和使用分析', status: '可用', isNew: true },
     { id: 8, title: '打印机设置', description: '配置打印机参数和选项', status: '可用', isNew: true },
+    { id: 9, title: '实时监控', description: '实时视频监控和直播功能', status: '可用', isNew: true, isLive: true },
+
   ];
 
   // 处理服务项点击事件，使用统一的路由工具进行页面跳转
@@ -44,6 +46,11 @@ const ServiceScreen: React.FC = () => {
         // 跳转到设置页面，不传递设备ID（通用设置）
         router.push('PrinterSettings');
         break;
+      case '实时监控':
+        // 跳转到实时视频监控页面
+        router.push('LiveStreaming');
+        break;
+
       default:
         // 其他服务的处理逻辑可以在这里添加
         console.log(`点击了服务: ${service.title}`);
@@ -82,6 +89,7 @@ const ServiceScreen: React.FC = () => {
                 index === services.length - 1 && styles.lastServiceItem,
                 service.isSpecial && styles.specialServiceItem,
                 service.isNew && styles.newServiceItem,
+                service.isLive && styles.liveServiceItem,
               ]}
               activeOpacity={0.7}
               onPress={() => handleServicePress(service)}
@@ -200,6 +208,10 @@ const styles = StyleSheet.create({
   newServiceItem: {
     backgroundColor: 'rgba(16, 185, 129, 0.15)',
     borderColor: 'rgba(16, 185, 129, 0.2)',
+  },
+  liveServiceItem: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: 'rgba(239, 68, 68, 0.2)',
   },
   serviceContent: {
     flex: 1,

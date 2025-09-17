@@ -13,6 +13,7 @@ import DeviceManagementScreen from '../app/device-management';
 import PrinterSettingsScreen from '../app/printer-settings';
 import DataAnalyticsScreen from '../app/data-analytics';
 import PrinterDetailsScreen from '../app/printer-details';
+import LiveStreamingScreen from '../app/live-streaming';
 
 // 路由配置项的类型定义
 export interface RouteConfig {
@@ -65,7 +66,7 @@ export const mainRouteConfigs: MainRouteConfig[] = [
   {
     name: 'TabLayout',
     component: TabLayout,
-    options: { 
+    options: {
       headerShown: false,  // 隐藏头部，使用Tab自己的导航
     },
     description: '主页面 - 包含底部Tab导航的页面组',
@@ -156,6 +157,23 @@ export const mainRouteConfigs: MainRouteConfig[] = [
       gestureEnabled: true,
     },
     description: '打印机详情页面 - 查看设备详细信息和操作（嵌套路由示例）',
+  },
+  {
+    name: 'LiveStreaming',
+    component: LiveStreamingScreen,
+    options: {
+      headerShown: true,
+      title: '实时监控',
+      headerStyle: {
+        backgroundColor: '#dc2626',
+      },
+      headerTintColor: '#ffffff',
+      headerTitleStyle: {
+        fontWeight: 'bold',
+      },
+      gestureEnabled: true,
+    },
+    description: '实时视频监控页面 - WebRTC实时视频流传输和监控',
   },
 ];
 
